@@ -1,5 +1,5 @@
-Firkin
-======
+Firkin 0.1
+==========
 A .NET embeddable Key/Value store using immutable log journalling and in-memory hashing as its storage back end. Inspired by Basho BitCask paper located at http://downloads.basho.com/papers/bitcask-intro.pdf
 
 Uses
@@ -26,7 +26,7 @@ Roadmap
 Usage
 =====
 
-usage of base store, ``FirkinHash<TKey>``
+Usage of base store, ``FirkinHash<TKey>``
 
 ::
 
@@ -44,6 +44,14 @@ usage of base store, ``FirkinHash<TKey>``
 
   // merge log files to remove overwritten and deleted entries
   store.Merge(); // does not block reads or writes (mostly)
+
+Some unscientific perf data
+===========================
+The write/random query test of all users from the StackOverflow dump included in the project has shown the following single threaded numbers:
+
+  41k writes/second
+  80k queries/second
+
 
 Contributors
 ============

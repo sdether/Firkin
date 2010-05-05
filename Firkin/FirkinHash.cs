@@ -27,6 +27,7 @@ using log4net;
 namespace Droog.Firkin {
     public class FirkinHash<TKey> : IFirkinHash<TKey> {
 
+        //--- Constants ---
         public const long DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
         private const string STORAGE_FILE_PREFIX = "store_";
         private const string MERGE_FILE_PREFIX = "merge_";
@@ -34,13 +35,16 @@ namespace Droog.Firkin {
         private const string DATA_FILE_EXTENSION = ".data";
         private const string HINT_FILE_EXTENSION = ".hint";
 
+        //--- Types ---
         private class MergePair {
             public IFirkinActiveFile Data;
             public IFirkinHintFile Hint;
         }
 
+        //--- Class Fields ---
         private static readonly ILog _log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
+        //--- Fields ---
         private readonly long _maxFileSize;
         private readonly string _storeDirectory;
         private readonly Func<byte[], TKey> _deserializer;
@@ -51,15 +55,18 @@ namespace Droog.Firkin {
         private Dictionary<TKey, KeyInfo> _index = new Dictionary<TKey, KeyInfo>();
         private Dictionary<ushort, IFirkinFile> _files = new Dictionary<ushort, IFirkinFile>();
         private IFirkinActiveFile _head;
-        private HashSet<TKey> _mergeWriteKeys;
 
-        public FirkinHash(string storeDirectory)
-            : this(storeDirectory, DEFAULT_MAX_FILE_SIZE) {
-        }
+        //--- Constructors ---
+        public FirkinHash(string storeDirectory) : this(storeDirectory, DEFAULT_MAX_FILE_SIZE) { }
+        public FirkinHash(string storeDirectory, long maxFileSize) : this(storeDirectory, maxFileSize, null) { }
 
-        public FirkinHash(string storeDirectory, long maxFileSize) {
+        public FirkinHash(string storeDirectory, long maxFileSize, IKeySerializer<TKey> serializer) {
             _storeDirectory = storeDirectory;
             _maxFileSize = maxFileSize;
+            if(serializer != null) {
+                _serializer = serializer.Serialize;
+                _deserializer = serializer.Deserialize;
+            }
             var t = typeof(TKey);
             if(t == typeof(int)) {
                 _serializer = (TKey key) => BitConverter.GetBytes((int)(object)key);
@@ -73,15 +80,10 @@ namespace Droog.Firkin {
             Initialize();
         }
 
+        //--- Properties ---
         public int Count { get { return _index.Count; } }
 
-        public FirkinHash(string storeDirectory, IKeySerializer<TKey> serializer) {
-            _storeDirectory = storeDirectory;
-            _serializer = serializer.Serialize;
-            _deserializer = serializer.Deserialize;
-            Initialize();
-        }
-
+        //--- Methods ---
         public void Put(TKey key, Stream stream, uint length) {
             if(length == 0) {
                 Delete(key);
@@ -94,9 +96,6 @@ namespace Droog.Firkin {
                     ValueSize = length
                 });
                 _index[key] = keyInfo;
-                if(_mergeWriteKeys != null) {
-                    _mergeWriteKeys.Add(key);
-                }
                 CheckHead();
             }
         }
@@ -113,24 +112,153 @@ namespace Droog.Firkin {
             }
         }
 
-        private void CheckHead() {
-            if(_head.Size < _maxFileSize) {
-                return;
-            }
-            NewHead();
-        }
-
-        private void NewHead() {
-            _log.DebugFormat("switching to new active file at size {0}", _head.Size);
-            _files[_head.FileId] = FirkinFile.OpenArchiveFromActive(_head);
-            var fileId = (ushort)(_head.FileId + 1);
-            _head = FirkinFile.CreateActive(GetDataFilename(fileId), fileId);
-            _files[_head.FileId] = _head;
-        }
-
         public Stream Get(TKey key) {
             KeyInfo info;
             return !_index.TryGetValue(key, out info) ? null : _files[info.FileId].ReadValue(info);
+        }
+
+        public void Merge() {
+
+            // TODO: need to make sure that merged files fit in the number space between 0 and active, regardless of requested max file size,
+            lock(_mergeSyncRoot) {
+                IFirkinFile[] oldFiles;
+                IFirkinFile head;
+                lock(_indexSyncRoot) {
+                    head = _head;
+                    oldFiles = _files.Values.Where(x => x != head).OrderBy(x => x.FileId).ToArray();
+                }
+                _log.DebugFormat("starting merge of {0} files in '{1}'", oldFiles.Length, _storeDirectory);
+                if(oldFiles.Length == 0) {
+
+                    // not merging if there is only one archive file
+                    return;
+                }
+
+                // merge current data into new data files and write out accompanying hint files
+                ushort fileId = 0;
+                var mergePairs = new List<MergePair>();
+                MergePair current = null;
+                uint serial = 0;
+                foreach(var file in oldFiles) {
+                    var deleted = 0;
+                    var outofdate = 0;
+                    var active = 0;
+                    foreach(var record in file.GetRecords()) {
+                        if(current == null) {
+                            fileId++;
+                            serial = 0;
+                            current = new MergePair() {
+                                Data = FirkinFile.CreateActive(GetMergeDataFilename(fileId), fileId),
+                                Hint = new FirkinHintFile(GetMergeHintFilename(fileId))
+                            };
+                            mergePairs.Add(current);
+                        }
+                        if(record.ValueSize == 0) {
+
+                            // not including deletes on merge
+                            deleted++;
+                            continue;
+                        }
+                        var key = _deserializer(record.Key);
+
+                        // TODO: do i need a lock on _index here?
+                        KeyInfo info;
+                        if(!_index.TryGetValue(key, out info)) {
+
+                            // not including record that's no longer in index
+                            outofdate++;
+                            continue;
+                        }
+                        if(info.FileId != file.FileId || info.Serial != record.Serial) {
+
+                            // not including out-of-date record
+                            outofdate++;
+                            continue;
+                        }
+                        var newRecord = record;
+                        newRecord.Serial = ++serial;
+                        var valuePosition = current.Data.Write(newRecord);
+                        current.Hint.WriteHint(newRecord, valuePosition);
+                        if(current.Data.Size > _maxFileSize) {
+                            current = null;
+                        }
+                        active++;
+                    }
+                    _log.DebugFormat("read {0} records, skipped {1} deleted and {2} outofdate", active, deleted, outofdate);
+                }
+                _log.DebugFormat("merged {0} file(s) into {1} file(s)", oldFiles.Length, mergePairs.Count);
+
+                // rebuild the index based on new files
+                var newIndex = new Dictionary<TKey, KeyInfo>();
+                var newFiles = new Dictionary<ushort, IFirkinFile>();
+                var mergeFiles = new List<IFirkinFile>();
+                var mergedRecords = 0;
+                foreach(var pair in mergePairs) {
+                    var file = FirkinFile.OpenArchiveFromActive(pair.Data);
+                    newFiles.Add(file.FileId, file);
+                    mergeFiles.Add(file);
+                    foreach(var hint in pair.Hint) {
+                        var keyInfo = new KeyInfo(pair.Data.FileId, hint);
+                        var key = _deserializer(hint.Key);
+                        newIndex[key] = keyInfo;
+                        mergedRecords++;
+                    }
+                    pair.Hint.Dispose();
+                }
+                _log.DebugFormat("read {0} records from hint files", mergedRecords);
+
+                // add records && files not part of merge
+                lock(_indexSyncRoot) {
+                    foreach(var file in _files.Values.Where(x => x.FileId >= head.FileId).OrderBy(x => x.FileId)) {
+                        newFiles[file.FileId] = file;
+                        foreach(var pair in file) {
+                            var key = _deserializer(pair.Key);
+                            if(pair.Value.ValueSize == 0) {
+                                newIndex.Remove(key);
+                            } else {
+                                newIndex[key] = pair.Value;
+                            }
+                            _log.DebugFormat("added entries from file {0}: {1}", file.FileId, newIndex.Count);
+                        }
+                    }
+
+                    // swap out index and file list
+                    _index = newIndex;
+                    _files = newFiles;
+                }
+
+                try {
+                    // move old files out of the way
+                    foreach(var file in oldFiles) {
+                        file.Dispose();
+                        File.Move(file.Filename, GetOldDataFilename(file.FileId));
+                        var hintfile = GetHintFilename(file.FileId);
+                        if(File.Exists(hintfile)) {
+                            File.Move(hintfile, GetOldHintFilename(fileId));
+                        }
+                    }
+
+                    // move new files into place
+                    foreach(var file in mergeFiles) {
+                        file.Rename(GetDataFilename(file.FileId));
+                        File.Move(GetMergeHintFilename(file.FileId), GetHintFilename(file.FileId));
+                    }
+
+                    // delete old files
+                    foreach(var file in oldFiles) {
+                        File.Delete(GetOldDataFilename(file.FileId));
+                        var hintfile = GetOldHintFilename(file.FileId);
+                        if(File.Exists(hintfile)) {
+                            File.Delete(hintfile);
+                        }
+                    }
+                } catch {
+
+                    // something went wrong, try to recover to pre-merge state
+                    // TODO: go back to pre-merge state
+                }
+            }
+            _log.DebugFormat("completed merge in '{0}'", _storeDirectory);
         }
 
         public bool Delete(TKey key) {
@@ -145,187 +273,24 @@ namespace Droog.Firkin {
                     Value = null,
                     ValueSize = 0
                 });
-                if(_mergeWriteKeys != null) {
-                    _mergeWriteKeys.Remove(key);
-                }
                 CheckHead();
             }
             return true;
         }
 
-        public void Merge() {
-
-            // TODO: need to make sure that merged files fit in the number space between 0 and active, regardless of requested max file size,
-            lock(_mergeSyncRoot) {
-                IFirkinFile[] oldFiles;
-                IFirkinFile head;
-                lock(_indexSyncRoot) {
-                    head = _head;
-                    oldFiles = _files.Values.Where(x => x != head).OrderBy(x => x.FileId).ToArray();
-                    _mergeWriteKeys = new HashSet<TKey>();
-                }
-                _log.DebugFormat("starting merge of {0} files in '{1}'", oldFiles.Length, _storeDirectory);
-                try {
-                    if(oldFiles.Length == 0) {
-
-                        // not merging if there is only one archive file
-                        return;
-                    }
-
-                    // merge current data into new data files and write out accompanying hint files
-                    ushort fileId = 0;
-                    var mergePairs = new List<MergePair>();
-                    MergePair current = null;
-                    uint serial = 0;
-                    foreach(var file in oldFiles) {
-                        var deleted = 0;
-                        var outofdate = 0;
-                        var active = 0;
-                        foreach(var record in file.GetRecords()) {
-                            if(current == null) {
-                                fileId++;
-                                serial = 0;
-                                current = new MergePair() {
-                                    Data = FirkinFile.CreateActive(GetMergeDataFilename(fileId), fileId),
-                                    Hint = new FirkinHintFile(GetMergeHintFilename(fileId))
-                                };
-                                mergePairs.Add(current);
-                            }
-                            if(record.ValueSize == 0) {
-
-                                // not including deletes on merge
-                                deleted++;
-                                continue;
-                            }
-                            var key = _deserializer(record.Key);
-
-                            // TODO: do i need a lock on _index here?
-                            KeyInfo info;
-                            if(!_index.TryGetValue(key, out info)) {
-
-                                // not including record that's no longer in index
-                                outofdate++;
-                                continue;
-                            }
-                            if(info.FileId != file.FileId || info.Serial != record.Serial) {
-
-                                // not including out-of-date record
-                                outofdate++;
-                                continue;
-                            }
-                            var newRecord = record;
-                            newRecord.Serial = ++serial;
-                            var valuePosition = current.Data.Write(newRecord);
-                            current.Hint.WriteHint(newRecord, valuePosition);
-                            if(current.Data.Size > _maxFileSize) {
-                                current = null;
-                            }
-                            active++;
-                        }
-                        _log.DebugFormat("read {0} records, skipped {1} deleted and {2} outofdate", active, deleted, outofdate);
-                    }
-                    _log.DebugFormat("merged {0} files into {1} files", oldFiles.Length, mergePairs.Count);
-
-                    // rebuild the index based on new files
-                    var newIndex = new Dictionary<TKey, KeyInfo>();
-                    var newFiles = new Dictionary<ushort, IFirkinFile>();
-                    var mergeFiles = new List<IFirkinFile>();
-                    var mergedRecords = 0;
-                    foreach(var pair in mergePairs) {
-                        var file = FirkinFile.OpenArchiveFromActive(pair.Data);
-                        newFiles.Add(file.FileId, file);
-                        mergeFiles.Add(file);
-                        foreach(var hint in pair.Hint) {
-                            var keyInfo = new KeyInfo(pair.Data.FileId, hint);
-                            var key = _deserializer(hint.Key);
-                            newIndex[key] = keyInfo;
-                            mergedRecords++;
-                        }
-                        pair.Hint.Dispose();
-                    }
-                    _log.DebugFormat("read {0} records from hint files", mergedRecords);
-
-                    // add records && files not part of merge
-                    lock(_indexSyncRoot) {
-                        //foreach(var key in _mergeWriteKeys) {
-                        //    newIndex[key] = _index[key];
-                        //}
-                        foreach(var file in _files.Values.Where(x => x.FileId >= head.FileId).OrderBy(x => x.FileId)) {
-                            newFiles[file.FileId] = file;
-                            foreach(var pair in file) {
-                                var key = _deserializer(pair.Key);
-                                if(pair.Value.ValueSize == 0) {
-                                    newIndex.Remove(key);
-                                } else {
-                                    newIndex[key] = pair.Value;
-                                }
-                                _log.DebugFormat("added entries from file {0}: {1}", file.FileId,newIndex.Count);
-                            }
-                        }
-
-                        // swap out index and file list
-                        _index = newIndex;
-                        _files = newFiles;
-                        _mergeWriteKeys = null;
-                    }
-
-                    try {
-                        // move old files out of the way
-                        foreach(var file in oldFiles) {
-                            file.Dispose();
-                            File.Move(file.Filename, GetOldDataFilename(file.FileId));
-                            var hintfile = GetHintFilename(file.FileId);
-                            if(File.Exists(hintfile)) {
-                                File.Move(hintfile, GetOldHintFilename(fileId));
-                            }
-                        }
-
-                        // move new files into place
-                        foreach(var file in mergeFiles) {
-                            file.Rename(GetDataFilename(file.FileId));
-                            File.Move(GetMergeHintFilename(file.FileId), GetHintFilename(file.FileId));
-                        }
-
-                        // delete old files
-                        foreach(var file in oldFiles) {
-                            File.Delete(GetOldDataFilename(file.FileId));
-                            var hintfile = GetOldHintFilename(file.FileId);
-                            if(File.Exists(hintfile)) {
-                                File.Delete(hintfile);
-                            }
-                        }
-                    } catch {
-
-                        // something went wrong, try to recover to pre-merge state
-                        // TODO: go back to pre-merge state
-                    }
-                } finally {
-                    _mergeWriteKeys = null;
-                }
+        private void CheckHead() {
+            if(_head.Size < _maxFileSize) {
+                return;
             }
-            _log.DebugFormat("completed merge in '{0}'", _storeDirectory);
+            NewHead();
         }
 
-        private string GetMergeDataFilename(ushort fileId) {
-            return GetFilename(fileId, MERGE_FILE_PREFIX, DATA_FILE_EXTENSION);
-        }
-        private string GetMergeHintFilename(ushort fileId) {
-            return GetFilename(fileId, MERGE_FILE_PREFIX, HINT_FILE_EXTENSION);
-        }
-        private string GetDataFilename(ushort fileId) {
-            return GetFilename(fileId, STORAGE_FILE_PREFIX, DATA_FILE_EXTENSION);
-        }
-        private string GetHintFilename(ushort fileId) {
-            return GetFilename(fileId, STORAGE_FILE_PREFIX, HINT_FILE_EXTENSION);
-        }
-        private string GetOldDataFilename(ushort fileId) {
-            return GetFilename(fileId, OLD_FILE_PREFIX, DATA_FILE_EXTENSION);
-        }
-        private string GetOldHintFilename(ushort fileId) {
-            return GetFilename(fileId, OLD_FILE_PREFIX, HINT_FILE_EXTENSION);
-        }
-        private string GetFilename(ushort fileId, string prefix, string extension) {
-            return Path.Combine(_storeDirectory, prefix + fileId + extension);
+        private void NewHead() {
+            _log.DebugFormat("switching to new active file at size {0}", _head.Size);
+            _files[_head.FileId] = FirkinFile.OpenArchiveFromActive(_head);
+            var fileId = (ushort)(_head.FileId + 1);
+            _head = FirkinFile.CreateActive(GetDataFilename(fileId), fileId);
+            _files[_head.FileId] = _head;
         }
 
         private void Initialize() {
@@ -385,6 +350,34 @@ namespace Droog.Firkin {
                 _head = FirkinFile.CreateActive(GetDataFilename(fileId), fileId);
             }
             _files[_head.FileId] = _head;
+        }
+
+        private string GetMergeDataFilename(ushort fileId) {
+            return GetFilename(fileId, MERGE_FILE_PREFIX, DATA_FILE_EXTENSION);
+        }
+
+        private string GetMergeHintFilename(ushort fileId) {
+            return GetFilename(fileId, MERGE_FILE_PREFIX, HINT_FILE_EXTENSION);
+        }
+
+        private string GetDataFilename(ushort fileId) {
+            return GetFilename(fileId, STORAGE_FILE_PREFIX, DATA_FILE_EXTENSION);
+        }
+
+        private string GetHintFilename(ushort fileId) {
+            return GetFilename(fileId, STORAGE_FILE_PREFIX, HINT_FILE_EXTENSION);
+        }
+
+        private string GetOldDataFilename(ushort fileId) {
+            return GetFilename(fileId, OLD_FILE_PREFIX, DATA_FILE_EXTENSION);
+        }
+
+        private string GetOldHintFilename(ushort fileId) {
+            return GetFilename(fileId, OLD_FILE_PREFIX, HINT_FILE_EXTENSION);
+        }
+
+        private string GetFilename(ushort fileId, string prefix, string extension) {
+            return Path.Combine(_storeDirectory, prefix + fileId + extension);
         }
 
         private ushort ParseFileId(string filename) {

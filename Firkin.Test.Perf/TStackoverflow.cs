@@ -28,6 +28,8 @@ using NUnit.Framework;
 using ProtoBuf;
 
 namespace Droog.Firkin.Test.Perf {
+
+    // Note: This test assumes that the 042010 StackOverflow data dump lives at C:\data\042010 SO
     [TestFixture]
     public class TStackoverflow {
 
@@ -68,7 +70,7 @@ namespace Droog.Firkin.Test.Perf {
                          })
                     .ToDictionary(x => x.Id, y => y.Stream);
             });
-            _log.DebugFormat("Read {0} users from xml: {1} ({2:0.0000}ms/user)", users.Count, elapsed, elapsed.TotalMilliseconds / users.Count);
+            _log.DebugFormat("Read {0} users from xml: {1} ({2:0}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
             var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
             var hash = new FirkinHash<int>(path);
             try {
@@ -77,7 +79,7 @@ namespace Droog.Firkin.Test.Perf {
                         hash.Put(user.Key, user.Value, user.Value.Length);
                     }
                 });
-                _log.DebugFormat("Wrote {0} users to firkin: {1} ({2:0.0000}ms/user)", users.Count, elapsed, elapsed.TotalMilliseconds / users.Count);
+                _log.DebugFormat("Wrote {0} users to firkin: {1} ({2:0}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
                 var comp = new List<Stream[]>();
                 elapsed = Diagnostics.Time(() => {
                     foreach(var user in users.OrderBy(x => x.Value.Length)) {
@@ -85,7 +87,7 @@ namespace Droog.Firkin.Test.Perf {
                         comp.Add(new[] { stream, user.Value });
                     }
                 });
-                _log.DebugFormat("Queried {0} users from firkin: {1} ({2:0.0000}ms/user)", users.Count, elapsed, elapsed.TotalMilliseconds / users.Count);
+                _log.DebugFormat("Queried {0} users from firkin: {1} ({2:0}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
                 foreach(var pair in comp) {
                     pair[0].Position = 0;
                     pair[1].Position = 0;
@@ -109,7 +111,7 @@ namespace Droog.Firkin.Test.Perf {
                          })
                     .ToDictionary(x => x.Id, y => y.Stream);
             });
-            _log.DebugFormat("Read {0} users from xml: {1} ({2:0.0000}ms/user)", users.Count, elapsed, elapsed.TotalMilliseconds / users.Count);
+            _log.DebugFormat("Read {0} users from xml: {1} ({2:0.0000}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
             var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
             var hash = new FirkinHash<int>(path);
             try {
@@ -118,7 +120,7 @@ namespace Droog.Firkin.Test.Perf {
                         hash.Put(user.Key, user.Value, user.Value.Length);
                     }
                 });
-                _log.DebugFormat("Wrote {0} users to firkin: {1} ({2:0.0000}ms/user)", users.Count, elapsed, elapsed.TotalMilliseconds / users.Count);
+                _log.DebugFormat("Wrote {0} users to firkin: {1} ({2:0.0000}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
                 hash.Dispose();
                 _log.DebugFormat("re-loading hash");
                 hash = new FirkinHash<int>(path);
@@ -129,7 +131,7 @@ namespace Droog.Firkin.Test.Perf {
                         comp.Add(new[] { stream, user.Value });
                     }
                 });
-                _log.DebugFormat("Queried {0} users from firkin: {1} ({2:0.0000}ms/user)", users.Count, elapsed, elapsed.TotalMilliseconds / users.Count);
+                _log.DebugFormat("Queried {0} users from firkin: {1} ({2:0.0000}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
                 foreach(var pair in comp) {
                     pair[0].Position = 0;
                     pair[1].Position = 0;
