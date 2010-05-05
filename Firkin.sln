@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Firkin.Test", "Firkin.Test\Firkin.Test.csproj", "{9F4A0096-AF17-440F-85A1-9FAD16C05D36}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Firkin.Test.Perf", "Firkin.Test.Perf\Firkin.Test.Perf.csproj", "{C76884C3-3BEF-4B22-8808-4F547417B90D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Firkin", "Firkin\Firkin.csproj", "{F5F73918-C281-4A75-93E6-C2D2D148D18A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B6872BFB-728D-4DB2-B057-CBFE84374237}"
+	ProjectSection(SolutionItems) = preProject
+		README.rst = README.rst
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9F4A0096-AF17-440F-85A1-9FAD16C05D36}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F4A0096-AF17-440F-85A1-9FAD16C05D36}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F4A0096-AF17-440F-85A1-9FAD16C05D36}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9F4A0096-AF17-440F-85A1-9FAD16C05D36}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C76884C3-3BEF-4B22-8808-4F547417B90D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C76884C3-3BEF-4B22-8808-4F547417B90D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C76884C3-3BEF-4B22-8808-4F547417B90D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C76884C3-3BEF-4B22-8808-4F547417B90D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F5F73918-C281-4A75-93E6-C2D2D148D18A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F5F73918-C281-4A75-93E6-C2D2D148D18A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F5F73918-C281-4A75-93E6-C2D2D148D18A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F5F73918-C281-4A75-93E6-C2D2D148D18A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
