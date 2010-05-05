@@ -36,6 +36,9 @@ Usage of base store, ``FirkinHash<TKey>``
   // store a value
   store.Put(key, valueStream, valueStreamLength);
 
+  // get a value
+  var valueStream = store.Get(key);
+
   // remove a value
   var removed = store.Delete(key);
 
