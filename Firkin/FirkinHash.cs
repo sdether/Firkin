@@ -35,7 +35,6 @@ namespace Droog.Firkin {
         private const string OLD_FILE_PREFIX = "old_";
         private const string DATA_FILE_EXTENSION = ".data";
         private const string HINT_FILE_EXTENSION = ".hint";
-
         //--- Types ---
         private class MergePair {
             public IFirkinActiveFile Data;
@@ -56,6 +55,7 @@ namespace Droog.Firkin {
         private Dictionary<TKey, KeyInfo> _index = new Dictionary<TKey, KeyInfo>();
         private Dictionary<ushort, IFirkinFile> _files = new Dictionary<ushort, IFirkinFile>();
         private IFirkinActiveFile _head;
+        private int _generation = 0;
 
         //--- Constructors ---
         public FirkinHash(string storeDirectory) : this(storeDirectory, DEFAULT_MAX_FILE_SIZE) { }
@@ -226,6 +226,7 @@ namespace Droog.Firkin {
                     // swap out index and file list
                     _index = newIndex;
                     _files = newFiles;
+                    _generation++;
                 }
 
                 try {
@@ -274,6 +275,9 @@ namespace Droog.Firkin {
                     Value = null,
                     ValueSize = 0
                 });
+
+                // zero out the value size, so that an iterator can recognize the info as deleted
+                info.ValueSize = 0;
                 CheckHead();
             }
             return true;
@@ -397,7 +401,38 @@ namespace Droog.Firkin {
         }
 
         public IEnumerator<KeyValuePair<TKey, FirkinStream>> GetEnumerator() {
-            throw new NotImplementedException();
+            KeyValuePair<TKey, KeyInfo>[] pairs;
+            lock(_indexSyncRoot) {
+                pairs = _index.ToArray();
+            }
+            foreach(var pair in pairs) {
+                IFirkinFile file;
+                FirkinStream stream = null;
+                if(pair.Value.ValueSize == 0) {
+
+                    // key has been deleted, skip it
+                    continue;
+                }
+                try {
+                    stream = _files[pair.Value.FileId].ReadValue(pair.Value);
+                } catch {
+
+                    // this may fail, and that's fine, just means we may have to degrade to Get() call
+                }
+                if(stream == null) {
+                    if(pair.Value.ValueSize == 0) {
+
+                        // key was deleted while we tried to get it, skip it
+                        continue;
+                    }
+
+                    // try to get the key via Get()
+                    stream = Get(pair.Key);
+                }
+                if(stream != null) {
+                    yield return new KeyValuePair<TKey, FirkinStream>(pair.Key, stream);
+                }
+            }
         }
 
         IEnumerator IEnumerable.GetEnumerator() {

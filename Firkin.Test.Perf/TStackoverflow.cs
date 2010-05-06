@@ -99,6 +99,45 @@ namespace Droog.Firkin.Test.Perf {
             }
 
         }
+        [Test]
+        public void Iterate_over_users_with_Firkin() {
+            Dictionary<int, Stream> users = null;
+            var elapsed = Diagnostics.Time(() => {
+                users = (from user in ReadEntitiesFromXml<User>(@"C:\data\042010 SO\users.xml")
+                         select new {
+                             user.Id,
+                             Stream = GetUserStream(user)
+                         })
+                    .ToDictionary(x => x.Id, y => y.Stream);
+            });
+            _log.DebugFormat("Read {0} users from xml: {1} ({2:0}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
+            var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+            var hash = new FirkinHash<int>(path);
+            try {
+                elapsed = Diagnostics.Time(() => {
+                    foreach(var user in users) {
+                        hash.Put(user.Key, user.Value, user.Value.Length);
+                    }
+                });
+                _log.DebugFormat("Wrote {0} users to firkin: {1} ({2:0}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
+                var comp = new List<KeyValuePair<int, Stream>>();
+                elapsed = Diagnostics.Time(() => {
+                    foreach(var pair in hash) {
+                        comp.Add(new KeyValuePair<int, Stream>(pair.Key, new MemoryStream(pair.Value.ReadBytes(pair.Value.Length))));
+                    }
+                });
+                _log.DebugFormat("Queried {0} users from firkin: {1} ({2:0}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
+                foreach(var pair in comp) {
+                    var userStream = users[pair.Key];
+                    userStream.Position = 0;
+                    Assert.AreEqual(userStream.ReadBytes(userStream.Length), pair.Value.ReadBytes(pair.Value.Length));
+                }
+            } finally {
+                hash.Dispose();
+                Directory.Delete(path, true);
+            }
+
+        }
 
         [Test]
         public void Read_write_users_with_hash_reload() {

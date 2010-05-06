@@ -19,12 +19,18 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Droog.Firkin.IO;
+using log4net;
 
 namespace Droog.Firkin {
     public class FirkinStream : Stream {
 
+        //--- Constants ---
         public const int BUFFER_SIZE = 16 * 1024;
 
+        //--- Class Fields ---
+        private static readonly ILog _log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
+        //--- Fields ---
         private readonly StreamSyncRoot _streamSyncRoot;
         private readonly Stream _stream;
         private readonly long _offset;
@@ -37,6 +43,7 @@ namespace Droog.Firkin {
         private bool _isMemorized;
         private bool _isDisposed;
 
+        //--- Constructors ---
         public FirkinStream(StreamSyncRoot streamSyncRoot, Stream stream, long offset, long length) {
             _streamSyncRoot = streamSyncRoot;
             _stream = stream;
@@ -48,9 +55,20 @@ namespace Droog.Firkin {
             }
         }
 
+        //--- Properties ---
         public bool IsDisposed { get { return _streamSyncRoot.IsDisposed || _isDisposed; } }
         public bool IsMemorized { get { return _isMemorized; } }
+        public override bool CanRead { get { return true; } }
+        public override bool CanSeek { get { return false; } }
+        public override bool CanWrite { get { return false; } }
+        public override long Length { get { return _length; } }
 
+        public override long Position {
+            get { return _position - _offset; }
+            set { throw new InvalidOperationException(); }
+        }
+
+        //--- Methods ---
         public void Memorize() {
             if(_isMemorized) {
                 return;
@@ -78,14 +96,25 @@ namespace Droog.Firkin {
         public override int Read(byte[] buffer, int offset, int count) {
             var read = 0;
             while(count > 0) {
-                if(_isMemorized) {
-                    if(_currentPosition == _current.Length) {
+                if(_current == null || _currentPosition == _current.Length) {
+                    if(_isMemorized) {
                         _chunkIndex++;
                         if(_chunkIndex >= _chunks.Count) {
                             return read;
                         }
                         _currentPosition = 0;
                         _current = _chunks[_chunkIndex];
+                    } else {
+                        lock(_streamSyncRoot) {
+                            _position += _currentPosition;
+                            if(_position >= _offset + _length) {
+                                return read;
+                            }
+                            _stream.Position = _position;
+                            _current = new byte[BUFFER_SIZE];
+                            _stream.Read(_current, 0, Math.Min(BUFFER_SIZE,(int)(_offset + _length - _position)));
+                            _currentPosition = 0;
+                        }
                     }
                 }
                 var copyCount = Math.Min(count, _current.Length - _currentPosition);
@@ -98,30 +127,18 @@ namespace Droog.Firkin {
             return read;
         }
 
-        public override long Position {
-            get { return _position-_offset; }
-            set { throw new NotImplementedException(); }
-        }
-
-        public override bool CanRead { get { return true; } }
-        public override bool CanSeek { get { return false; } }
-        public override bool CanWrite { get { return false; } }
-        public override long Length { get { return _length; } }
-
-        public override void Flush() {
-            throw new NotImplementedException();
-        }
+        public override void Flush() { }
 
         public override long Seek(long offset, SeekOrigin origin) {
-            throw new NotImplementedException();
+            throw new InvalidOperationException();
         }
 
         public override void SetLength(long value) {
-            throw new NotImplementedException();
+            throw new InvalidOperationException();
         }
 
         public override void Write(byte[] buffer, int offset, int count) {
-            throw new NotImplementedException();
+            throw new InvalidOperationException();
         }
 
         protected override void Dispose(bool disposing) {

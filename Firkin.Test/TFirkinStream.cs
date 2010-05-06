@@ -18,6 +18,7 @@
 using System;
 using System.IO;
 using Droog.Firkin.IO;
+using log4net;
 using NUnit.Framework;
 using Droog.Firkin.Util;
 
@@ -25,6 +26,8 @@ namespace Droog.Firkin.Test {
 
     [TestFixture]
     public class TFirkinStream {
+
+        private static readonly ILog _log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         [Test]
         public void FirkinStream_memorizes_small_streams_automatically() {
@@ -48,7 +51,7 @@ namespace Droog.Firkin.Test {
             fs.Memorize();
             Assert.IsTrue(fs.IsMemorized);
             var bytes = fs.ReadBytes();
-            Assert.AreEqual(length,bytes.Length);
+            Assert.AreEqual(length, bytes.Length);
             stream.Position = 1000;
             Assert.AreEqual(0, stream.ReadBytes(length).Compare(bytes));
         }
@@ -60,25 +63,59 @@ namespace Droog.Firkin.Test {
             var fs = new FirkinStream(new StreamSyncRoot(), stream, 100, (uint)length);
             var read = -1;
             var total = 0;
-            var buffer = new byte[length];
+            var bytes = new byte[length];
 
             while(read != 0) {
-                read = fs.Read(buffer, total, 100);
+                read = fs.Read(bytes, total, 100);
                 total += read;
             }
             Assert.AreEqual(length, total);
             stream.Position = 100;
-            Assert.AreEqual(0, stream.ReadBytes(length).Compare(buffer));
+            Assert.AreEqual(0, stream.ReadBytes(length).Compare(bytes));
         }
+
         [Test]
         public void Can_read_memorized_stream_in_single_chunk() {
             var stream = CreateStream(1000);
             var length = 500;
             var fs = new FirkinStream(new StreamSyncRoot(), stream, 100, (uint)length);
-            var buffer = new byte[length];
-            Assert.AreEqual(length, fs.Read(buffer, 0, length));
+            var bytes = new byte[length];
+            Assert.AreEqual(length, fs.Read(bytes, 0, length));
             stream.Position = 100;
-            Assert.AreEqual(0, stream.ReadBytes(length).Compare(buffer));
+            Assert.AreEqual(0, stream.ReadBytes(length).Compare(bytes));
+        }
+
+        [Test]
+        public void Can_read_large_stream_directly_as_single_chunk() {
+            var stream = CreateStream(100000);
+            var length = 90000;
+            var fs = new FirkinStream(new StreamSyncRoot(), stream, 1000, length);
+            Assert.IsFalse(fs.IsMemorized);
+            _log.Debug("starting read");
+            var bytes = fs.ReadBytes();
+            Assert.AreEqual(length, bytes.Length);
+            stream.Position = 1000;
+            Assert.AreEqual(0, stream.ReadBytes(length).Compare(bytes));
+        }
+
+        [Test]
+        public void Can_read_large_stream_directly_as_little_chunks() {
+            var stream = CreateStream(100000);
+            var length = 90000;
+            var fs = new FirkinStream(new StreamSyncRoot(), stream, 1000, length);
+            Assert.IsFalse(fs.IsMemorized);
+            _log.Debug("starting read");
+            var read = -1;
+            var total = 0;
+            var bytes = new byte[length];
+
+            while(read != 0) {
+                read = fs.Read(bytes, total, Math.Min(4 * 1024, bytes.Length - total));
+                total += read;
+            }
+            Assert.AreEqual(length, bytes.Length);
+            stream.Position = 1000;
+            Assert.AreEqual(0, stream.ReadBytes(length).Compare(bytes));
         }
 
         private MemoryStream CreateStream(int size) {
