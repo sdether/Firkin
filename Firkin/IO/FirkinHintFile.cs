@@ -20,11 +20,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using Droog.Firkin.Data;
-using Droog.Firkin.IO;
 using Droog.Firkin.Util;
 using log4net;
 
-namespace Droog.Firkin {
+namespace Droog.Firkin.IO {
     public class FirkinHintFile : IFirkinHintFile {
         private readonly string _filename;
         private const int HEADER_SIZE = 4 + 4 + 4 + 4;

@@ -53,6 +53,7 @@ Some unscientific perf data
 The write/random query test of all users from the StackOverflow dump included in the project has shown the following single threaded numbers:
 
   41k writes/second
+  
   80k queries/second
 
 

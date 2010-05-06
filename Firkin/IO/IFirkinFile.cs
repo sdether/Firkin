@@ -24,7 +24,7 @@ namespace Droog.Firkin.IO {
     public interface IFirkinFile : IEnumerable<KeyValuePair<byte[], KeyInfo>>, IDisposable {
         ushort FileId { get; }
         string Filename { get; }
-        Stream ReadValue(KeyInfo keyInfo);
+        FirkinStream ReadValue(KeyInfo keyInfo);
         long Size { get; }
         IEnumerable<KeyValueRecord> GetRecords();
         void Rename(string newFilename);

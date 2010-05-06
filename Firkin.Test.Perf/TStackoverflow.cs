@@ -84,7 +84,7 @@ namespace Droog.Firkin.Test.Perf {
                 elapsed = Diagnostics.Time(() => {
                     foreach(var user in users.OrderBy(x => x.Value.Length)) {
                         var stream = hash.Get(user.Key);
-                        comp.Add(new[] { stream, user.Value });
+                        comp.Add(new[] { new MemoryStream(stream.ReadBytes(stream.Length)), user.Value });
                     }
                 });
                 _log.DebugFormat("Queried {0} users from firkin: {1} ({2:0}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
@@ -128,7 +128,7 @@ namespace Droog.Firkin.Test.Perf {
                 elapsed = Diagnostics.Time(() => {
                     foreach(var user in users.OrderBy(x => x.Value.Length)) {
                         var stream = hash.Get(user.Key);
-                        comp.Add(new[] { stream, user.Value });
+                        comp.Add(new[] { new MemoryStream(stream.ReadBytes(stream.Length)), user.Value });
                     }
                 });
                 _log.DebugFormat("Queried {0} users from firkin: {1} ({2:0.0000}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);

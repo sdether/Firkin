@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Droog.Firkin {
-    public interface IFirkinHash<TKey> : IDisposable {
+    public interface IFirkinHash<TKey> : IEnumerable<KeyValuePair<TKey, FirkinStream>>, IDisposable {
         void Put(TKey key, Stream stream, uint length);
         void Put(TKey key, Stream stream, long length);
         void Flush();
-        Stream Get(TKey key);
+        FirkinStream Get(TKey key);
         bool Delete(TKey key);
         void Merge();
     }

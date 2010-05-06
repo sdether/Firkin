@@ -20,11 +20,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using Droog.Firkin.Data;
-using Droog.Firkin.IO;
 using Droog.Firkin.Util;
 using log4net;
 
-namespace Droog.Firkin {
+namespace Droog.Firkin.IO {
     public class FirkinFile : IFirkinArchiveFile, IFirkinActiveFile {
 
         private const int HASH_SIZE = 16;
@@ -38,7 +37,7 @@ namespace Droog.Firkin {
         private readonly ushort _fileId;
         private string _filename;
         private readonly bool _write;
-        private readonly object _streamSyncRoot = new object();
+        private readonly StreamSyncRoot _streamSyncRoot = new StreamSyncRoot();
         private Stream _stream;
         private uint _serial;
 
@@ -127,20 +126,13 @@ namespace Droog.Firkin {
             }
         }
 
-        public Stream ReadValue(KeyInfo keyInfo) {
-            var stream = new MemoryStream();
-            lock(_streamSyncRoot) {
-
-                // TODO (arnec): make this a StreamView if the value is large, so that we can stream partial data from disk
-                _stream.Position = keyInfo.ValuePosition;
-                _stream.CopyTo(stream, keyInfo.ValueSize);
-                stream.Position = 0;
-            }
-            return stream;
+        public FirkinStream ReadValue(KeyInfo keyInfo) {
+            return new FirkinStream(_streamSyncRoot, _stream, (long)keyInfo.ValuePosition, (long)keyInfo.ValueSize);
         }
 
         public IEnumerable<KeyValueRecord> GetRecords() {
             lock(_streamSyncRoot) {
+                CheckObjectDisposed();
                 _stream.Position = 0;
                 while(true) {
 
@@ -183,6 +175,7 @@ namespace Droog.Firkin {
 
         public void Rename(string newFilename) {
             lock(_streamSyncRoot) {
+                CheckObjectDisposed();
                 _stream.Close();
                 _stream.Dispose();
                 File.Move(_filename, newFilename);
@@ -192,11 +185,15 @@ namespace Droog.Firkin {
         }
 
         public void Flush() {
-            _stream.Flush();
+            lock(_streamSyncRoot) {
+                CheckObjectDisposed();
+                _stream.Flush();
+            }
         }
 
         public IEnumerable<KeyValuePair<byte[], KeyInfo>> GetKeys() {
             lock(_streamSyncRoot) {
+                CheckObjectDisposed();
                 _stream.Position = 0;
                 while(true) {
                     var recordPosition = _stream.Position;
@@ -223,17 +220,27 @@ namespace Droog.Firkin {
         }
 
         public void Dispose() {
-            _log.DebugFormat("disposing file '{0}'", _filename);
-            _stream.Close();
-            _stream.Dispose();
+            if(!_streamSyncRoot.IsDisposed) {
+                _log.DebugFormat("disposing file '{0}'", _filename);
+                _stream.Close();
+                _stream.Dispose();
+                _streamSyncRoot.IsDisposed = true;
+            }
         }
 
         public IEnumerator<KeyValuePair<byte[], KeyInfo>> GetEnumerator() {
+            CheckObjectDisposed();
             return GetKeys().GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
             return GetEnumerator();
         }
+
+        private void CheckObjectDisposed() {
+            if(_streamSyncRoot.IsDisposed) {
+                throw new ObjectDisposedException(ToString());
+            }
         }
+    }
 }

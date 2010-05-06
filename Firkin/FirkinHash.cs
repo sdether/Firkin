@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -112,7 +113,7 @@ namespace Droog.Firkin {
             }
         }
 
-        public Stream Get(TKey key) {
+        public FirkinStream Get(TKey key) {
             KeyInfo info;
             return !_index.TryGetValue(key, out info) ? null : _files[info.FileId].ReadValue(info);
         }
@@ -393,6 +394,14 @@ namespace Droog.Firkin {
             foreach(var file in _files.Values) {
                 file.Dispose();
             }
+        }
+
+        public IEnumerator<KeyValuePair<TKey, FirkinStream>> GetEnumerator() {
+            throw new NotImplementedException();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() {
+            return GetEnumerator();
         }
     }
 }

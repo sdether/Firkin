@@ -60,6 +60,7 @@
     <Compile Include="TFirkinHash.cs" />
     <Compile Include="TFirkinFile.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TFirkinStream.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Firkin\Firkin.csproj">

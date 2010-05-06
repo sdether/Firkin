@@ -18,6 +18,7 @@
 using System;
 using System.IO;
 using Droog.Firkin.Data;
+using Droog.Firkin.IO;
 using NUnit.Framework;
 
 namespace Droog.Firkin.Test {
