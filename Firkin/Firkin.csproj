@@ -50,9 +50,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Data\HintRecord.cs" />
+    <Compile Include="Serialization\IStreamSerializer.cs" />
+    <Compile Include="FirkinDictionary.cs" />
     <Compile Include="FirkinHash.cs" />
     <Compile Include="IO\FirkinFile.cs" />
-    <Compile Include="Data\IKeySerializer.cs" />
+    <Compile Include="Serialization\IKeySerializer.cs" />
     <Compile Include="Data\KeyInfo.cs" />
     <Compile Include="Data\KeyValueRecord.cs" />
     <Compile Include="Data\KeyValuePair.cs" />

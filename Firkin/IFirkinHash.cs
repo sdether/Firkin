@@ -27,5 +27,6 @@ namespace Droog.Firkin {
         FirkinStream Get(TKey key);
         bool Delete(TKey key);
         void Merge();
+        void Truncate();
     }
 }

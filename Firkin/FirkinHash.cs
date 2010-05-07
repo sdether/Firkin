@@ -23,6 +23,7 @@ using System.Linq;
 using System.Text;
 using Droog.Firkin.Data;
 using Droog.Firkin.IO;
+using Droog.Firkin.Serialization;
 using log4net;
 
 namespace Droog.Firkin {
@@ -437,6 +438,10 @@ namespace Droog.Firkin {
 
         IEnumerator IEnumerable.GetEnumerator() {
             return GetEnumerator();
+        }
+
+        public void Truncate() {
+            throw new NotImplementedException();
         }
     }
 }
