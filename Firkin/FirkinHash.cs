@@ -84,6 +84,7 @@ namespace Droog.Firkin {
 
         //--- Properties ---
         public int Count { get { return _index.Count; } }
+        public IEnumerable<TKey> Keys { get { lock(_indexSyncRoot) { return _index.Keys.ToArray(); } } }
 
         //--- Methods ---
         public void Put(TKey key, Stream stream, uint length) {

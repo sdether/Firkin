@@ -61,6 +61,7 @@
     <Compile Include="TFirkinFile.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TFirkinStream.cs" />
+    <Compile Include="TMisc.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Firkin\Firkin.csproj">

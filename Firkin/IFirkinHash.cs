@@ -28,5 +28,7 @@ namespace Droog.Firkin {
         bool Delete(TKey key);
         void Merge();
         void Truncate();
+        int Count { get; }
+        IEnumerable<TKey> Keys { get; }
     }
 }

@@ -20,9 +20,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using Droog.Firkin.Serialization;
+using System.Linq;
 
 namespace Droog.Firkin {
-    public class FirkinDictionary<TKey,TValue> : IDictionary<TKey,TValue> {
+    public class FirkinDictionary<TKey, TValue> : IDictionary<TKey, TValue> {
 
         //--- Fields ---
         private readonly IFirkinHash<TKey> _hash;
@@ -40,7 +41,7 @@ namespace Droog.Firkin {
 
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator() {
             foreach(var pair in _hash) {
-                yield return new KeyValuePair<TKey, TValue>(pair.Key,_valueSerializer.Deserialize(pair.Value));
+                yield return new KeyValuePair<TKey, TValue>(pair.Key, _valueSerializer.Deserialize(pair.Value));
             }
         }
 
@@ -49,8 +50,14 @@ namespace Droog.Firkin {
         }
 
         public void Add(KeyValuePair<TKey, TValue> item) {
-            var stream = GetStream(item);
-            _hash.Put(item.Key,stream,stream.Length);
+            Add(item.Key, item.Value);
+        }
+
+        public void Add(TKey key, TValue value) {
+
+            // Note: This behaves differently from normal dictionaries, as in it won't throw on collision
+            var stream = GetStream(value);
+            _hash.Put(key, stream, stream.Length);
         }
 
         public void Clear() {
@@ -58,57 +65,77 @@ namespace Droog.Firkin {
         }
 
         public bool Contains(KeyValuePair<TKey, TValue> item) {
-            throw new NotImplementedException();
+            var stream = _hash.Get(item.Key);
+            return stream != null && item.Value.Equals(_valueSerializer.Deserialize(stream));
         }
 
         public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex) {
-            throw new NotImplementedException();
+            try {
+                foreach(var kvp in this) {
+                    array[arrayIndex] = kvp;
+                    arrayIndex++;
+                }
+            } catch(IndexOutOfRangeException e) {
+                throw new ArgumentException("Destination array is too small", "array", e);
+            }
         }
 
         public bool Remove(KeyValuePair<TKey, TValue> item) {
-            throw new NotImplementedException();
+            // TODO: race condition.. have put a lock around all _hash accesses to avoid
+            return Contains(item) && _hash.Delete(item.Key);
         }
 
         public int Count {
-            get { throw new NotImplementedException(); }
+            get { return _hash.Count; }
         }
 
         public bool IsReadOnly {
-            get { throw new NotImplementedException(); }
+            get { return false; }
         }
 
         public bool ContainsKey(TKey key) {
-            throw new NotImplementedException();
-        }
-
-        public void Add(TKey key, TValue value) {
-            throw new NotImplementedException();
+            var stream = _hash.Get(key);
+            return stream != null;
         }
 
         public bool Remove(TKey key) {
-            throw new NotImplementedException();
+            return _hash.Delete(key);
         }
 
         public bool TryGetValue(TKey key, out TValue value) {
-            throw new NotImplementedException();
+            var stream = _hash.Get(key);
+            if(stream == null) {
+                value = default(TValue);
+                return false;
+            }
+            value = _valueSerializer.Deserialize(stream);
+            return true;
         }
 
         public TValue this[TKey key] {
-            get { throw new NotImplementedException(); }
-            set { throw new NotImplementedException(); }
+            get {
+                TValue value;
+                if(!TryGetValue(key, out value)) {
+                    throw new KeyNotFoundException();
+                }
+                return value;
+            }
+            set {
+                Add(key, value);
+            }
         }
 
         public ICollection<TKey> Keys {
-            get { throw new NotImplementedException(); }
+            get { return _hash.Keys.ToList(); }
         }
 
         public ICollection<TValue> Values {
-            get { throw new NotImplementedException(); }
+            get { return this.Select(x => x.Value).ToList(); }
         }
 
-        private MemoryStream GetStream(KeyValuePair<TKey, TValue> item) {
+        private MemoryStream GetStream(TValue value) {
             var stream = new MemoryStream();
-            _valueSerializer.Serialize(stream,item.Value);
+            _valueSerializer.Serialize(stream, value);
             stream.Position = 0;
             return stream;
         }
