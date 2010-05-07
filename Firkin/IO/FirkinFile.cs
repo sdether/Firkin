@@ -136,7 +136,7 @@ namespace Droog.Firkin.IO {
                 _stream.Position = 0;
                 while(true) {
 
-                    // TODO (arnec): combine head logic with GetKeys()
+                    // TODO: combine head logic with GetKeys()
                     var header = _stream.ReadBytes(HEADER_SIZE);
                     if(header.Length == 0) {
 
