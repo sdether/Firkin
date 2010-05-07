@@ -1,6 +1,6 @@
 Firkin 0.1
 ==========
-A .NET embeddable Key/Value store using immutable log journalling and in-memory hashing as its storage back end. Inspired by Basho BitCask paper located at http://downloads.basho.com/papers/bitcask-intro.pdf
+An embeddable Key/Value store for .NET and mono using immutable log journalling and in-memory hashing as its storage back end. Inspired by the Basho BitCask paper located at http://downloads.basho.com/papers/bitcask-intro.pdf
 
 Uses
 ====
@@ -13,12 +13,10 @@ Currently using the driver in the GAC is not supported.  Simply copy the driver 
 
 Patches
 =======
-Patches are welcome and will likely be accepted.  By submitting a patch you assign the copyright to me, Arne F. Claassen.  This is necessary to simplify the number of copyright holders should it become necessary that the copyright need to be reassigned or the code re-licensed.  The code will always be available under an OSI approved license.
+Patches are welcome and will likely be accepted.  By submitting a patch you assign the copyright to me, Arne F. Claassen.  This is necessary to simplify the number of copyright holders should it become necessary that the copyright need to be re-assigned or the code re-licensed.  The code will always be available under an OSI approved license.
 
 Roadmap
 =======
-- Make ``FirkinHash`` IEnumerable
-  - allow both exclusive and non-exclusive iteration (i.e. non-exclusive does not block writes)
 - Create ``IDictionary<TKey,TValue>`` wrapper around FirkinHash
 - Create ``FirkinIndex`` to create secondary indicies into FirkinHash
 - Make stream returned by ``Get()`` lazy for large entries, so projection can be done without reading entire entry into memory
@@ -35,6 +33,12 @@ Usage of base store, ``FirkinHash<TKey>``
 
   // store a value
   store.Put(key, valueStream, valueStreamLength);
+  
+  // iterate over all files (won't block other reads or writes)
+  foreach(var pair in store) {
+    var key = pair.Key;
+    var valueStream = pair.Value;
+  }
 
   // get a value
   var valueStream = store.Get(key);

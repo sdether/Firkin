@@ -12,9 +12,9 @@ namespace Droog.Firkin.Test.Perf.Stackoverflow {
         [XmlAttribute]
         public PostType PostType;
         [XmlAttribute]
-        public int? ParentId;
+        public int ParentId;
         [XmlAttribute]
-        public int? AcceptedAnswerId;
+        public int AcceptedAnswerId;
         [XmlAttribute]
         public DateTime CreationDate;
         [XmlAttribute]
@@ -30,13 +30,13 @@ namespace Droog.Firkin.Test.Perf.Stackoverflow {
         [XmlAttribute]
         public string LastEditorDisplayname;
         [XmlAttribute]
-        public DateTime? LastEditDate;
+        public DateTime LastEditDate;
         [XmlAttribute]
-        public DateTime? LastActivityDate;
+        public DateTime LastActivityDate;
         [XmlAttribute]
-        public DateTime? CommunityOnwedDate;
+        public DateTime CommunityOwnedDate;
         [XmlAttribute]
-        public DateTime? ClosedDate;
+        public DateTime ClosedDate;
         [XmlAttribute]
         public string Title;
         [XmlAttribute]

@@ -17,6 +17,7 @@
  */
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Xml;
@@ -29,57 +30,27 @@ using ProtoBuf;
 
 namespace Droog.Firkin.Test.Perf {
 
-    // Note: This test assumes that the 042010 StackOverflow data dump lives at C:\data\042010 SO
+    // Note: This test assumes the 042010 StackOverflow data dump
     [TestFixture]
     public class TStackoverflow {
 
         private static readonly ILog _log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         [Test]
-        public void Read_Posts_from_Xml() {
-            Console.WriteLine("All posts: {0}", Diagnostics.Time(() => {
-                var i = 0;
-                foreach(var user in ReadEntitiesFromXml<User>(@"C:\data\042010 SO\posts.xml")) {
-                    i++;
-                    //Console.WriteLine(user.DisplayName);
-                }
-                Console.WriteLine("Total: {0}", i);
-            }));
-        }
-
-        [Test]
-        public void Read_Users_from_Xml() {
-            Console.WriteLine("All users: {0}", Diagnostics.Time(() => {
-                var i = 0;
-                foreach(var user in ReadEntitiesFromXml<User>(@"C:\data\042010 SO\users.xml")) {
-                    i++;
-                    //Console.WriteLine(user.DisplayName);
-                }
-                Console.WriteLine("Total: {0}", i);
-            }));
-        }
-
-        [Test]
         public void Read_write_users_with_Firkin() {
-            Dictionary<int, Stream> users = null;
-            var elapsed = Diagnostics.Time(() => {
-                users = (from user in ReadEntitiesFromXml<User>(@"C:\data\042010 SO\users.xml")
-                         select new {
-                             user.Id,
-                             Stream = GetUserStream(user)
-                         })
-                    .ToDictionary(x => x.Id, y => y.Stream);
-            });
-            _log.DebugFormat("Read {0} users from xml: {1} ({2:0}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
+            var users = GetDataSource<User>().ToDictionary(k => k.Id, v => GetEntityStream(v));
+            if(!users.Any()) {
+                return;
+            }
             var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
             var hash = new FirkinHash<int>(path);
             try {
-                elapsed = Diagnostics.Time(() => {
+                var elapsed = Diagnostics.Time(() => {
                     foreach(var user in users) {
                         hash.Put(user.Key, user.Value, user.Value.Length);
                     }
                 });
-                _log.DebugFormat("Wrote {0} users to firkin: {1} ({2:0}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
+                Console.WriteLine("Wrote {0} users to firkin @ {1:0,0} users/second)", users.Count, users.Count / elapsed.TotalSeconds);
                 var comp = new List<Stream[]>();
                 elapsed = Diagnostics.Time(() => {
                     foreach(var user in users.OrderBy(x => x.Value.Length)) {
@@ -87,7 +58,7 @@ namespace Droog.Firkin.Test.Perf {
                         comp.Add(new[] { new MemoryStream(stream.ReadBytes(stream.Length)), user.Value });
                     }
                 });
-                _log.DebugFormat("Queried {0} users from firkin: {1} ({2:0}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
+                Console.WriteLine("Queried {0} users from firkin @ {1:0,0} users/second)", users.Count, users.Count / elapsed.TotalSeconds);
                 foreach(var pair in comp) {
                     pair[0].Position = 0;
                     pair[1].Position = 0;
@@ -101,32 +72,26 @@ namespace Droog.Firkin.Test.Perf {
         }
         [Test]
         public void Iterate_over_users_with_Firkin() {
-            Dictionary<int, Stream> users = null;
-            var elapsed = Diagnostics.Time(() => {
-                users = (from user in ReadEntitiesFromXml<User>(@"C:\data\042010 SO\users.xml")
-                         select new {
-                             user.Id,
-                             Stream = GetUserStream(user)
-                         })
-                    .ToDictionary(x => x.Id, y => y.Stream);
-            });
-            _log.DebugFormat("Read {0} users from xml: {1} ({2:0}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
+            var users = GetDataSource<User>().ToDictionary(k => k.Id, v => GetEntityStream(v));
+            if(!users.Any()) {
+                return;
+            }
             var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
             var hash = new FirkinHash<int>(path);
             try {
-                elapsed = Diagnostics.Time(() => {
+                var elapsed = Diagnostics.Time(() => {
                     foreach(var user in users) {
                         hash.Put(user.Key, user.Value, user.Value.Length);
                     }
                 });
-                _log.DebugFormat("Wrote {0} users to firkin: {1} ({2:0}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
+                Console.WriteLine("Wrote {0} users to firkin @ {1:0,0} users/second)", users.Count, users.Count / elapsed.TotalSeconds);
                 var comp = new List<KeyValuePair<int, Stream>>();
                 elapsed = Diagnostics.Time(() => {
                     foreach(var pair in hash) {
                         comp.Add(new KeyValuePair<int, Stream>(pair.Key, new MemoryStream(pair.Value.ReadBytes(pair.Value.Length))));
                     }
                 });
-                _log.DebugFormat("Queried {0} users from firkin: {1} ({2:0}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
+                Console.WriteLine("Queried {0} users from firkin @ {1:0,0} users/second)", users.Count, users.Count / elapsed.TotalSeconds);
                 foreach(var pair in comp) {
                     var userStream = users[pair.Key];
                     userStream.Position = 0;
@@ -141,25 +106,19 @@ namespace Droog.Firkin.Test.Perf {
 
         [Test]
         public void Read_write_users_with_hash_reload() {
-            Dictionary<int, Stream> users = null;
-            var elapsed = Diagnostics.Time(() => {
-                users = (from user in ReadEntitiesFromXml<User>(@"C:\data\042010 SO\users.xml")
-                         select new {
-                             user.Id,
-                             Stream = GetUserStream(user)
-                         })
-                    .ToDictionary(x => x.Id, y => y.Stream);
-            });
-            _log.DebugFormat("Read {0} users from xml: {1} ({2:0.0000}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
+            var users = GetDataSource<User>().ToDictionary(k => k.Id, v => GetEntityStream(v));
+            if(!users.Any()) {
+                return;
+            }
             var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
             var hash = new FirkinHash<int>(path);
             try {
-                elapsed = Diagnostics.Time(() => {
+                var elapsed = Diagnostics.Time(() => {
                     foreach(var user in users) {
                         hash.Put(user.Key, user.Value, user.Value.Length);
                     }
                 });
-                _log.DebugFormat("Wrote {0} users to firkin: {1} ({2:0.0000}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
+                Console.WriteLine("Wrote {0} users to firkin @ {1:0,0} users/second)", users.Count, users.Count / elapsed.TotalSeconds);
                 hash.Dispose();
                 _log.DebugFormat("re-loading hash");
                 hash = new FirkinHash<int>(path);
@@ -170,7 +129,7 @@ namespace Droog.Firkin.Test.Perf {
                         comp.Add(new[] { new MemoryStream(stream.ReadBytes(stream.Length)), user.Value });
                     }
                 });
-                _log.DebugFormat("Queried {0} users from firkin: {1} ({2:0.0000}users/second)", users.Count, elapsed, users.Count / elapsed.TotalSeconds);
+                Console.WriteLine("Queried {0} users from firkin @ {1:0,0} users/second)", users.Count, users.Count / elapsed.TotalSeconds);
                 foreach(var pair in comp) {
                     pair[0].Position = 0;
                     pair[1].Position = 0;
@@ -183,25 +142,55 @@ namespace Droog.Firkin.Test.Perf {
 
         }
 
-        private Stream GetUserStream(User user) {
+        private IEnumerable<T> GetDataSource<T>() {
+            var result = new List<T>();
+            var datasource = "";
+            var t = typeof(T);
+            if(t == typeof(Post)) {
+                datasource = "posts.xml";
+            } else if(t == typeof(User)) {
+                datasource = "users.xml";
+            } else {
+                Console.WriteLine("unrecognized type {0}", t.Name);
+                return result;
+            }
+            datasource = Path.Combine(ConfigurationManager.AppSettings["path.stackoverflow"], datasource);
+            if(!File.Exists(datasource)) {
+                Console.WriteLine("no such data source: {0}", datasource);
+                return result;
+            }
+            var i = 0;
+            var elapsed = Diagnostics.Time(() => {
+                foreach(var record in ReadEntitiesFromXml<T>(datasource)) {
+                    i++;
+                    result.Add(record);
+                }
+            });
+            Console.WriteLine("Read {0} {1} records @ {2:0,0}records/second", i, t.Name, i / elapsed.TotalSeconds);
+            return result;
+        }
+
+        private Stream GetEntityStream<T>(T entity) {
             var stream = new MemoryStream();
-            Serializer.Serialize(stream, user);
+            Serializer.Serialize(stream, entity);
             stream.Position = 0;
             return stream;
         }
 
         public IEnumerable<T> ReadEntitiesFromXml<T>(string filename) {
             var serializer = new XmlSerializer(typeof(T));
-            var stream = new FileStream(filename, FileMode.Open);
-            var reader = new XmlTextReader(stream);
-            while(reader.Read()) {
-                if(reader.NodeType != XmlNodeType.Element) {
-                    continue;
+            using(var stream = new FileStream(filename, FileMode.Open)) {
+                using(var reader = new XmlTextReader(stream)) {
+                    while(reader.Read()) {
+                        if(reader.NodeType != XmlNodeType.Element) {
+                            continue;
+                        }
+                        if(reader.Name != "row") {
+                            continue;
+                        }
+                        yield return (T)serializer.Deserialize(reader);
+                    }
                 }
-                if(reader.Name != "row") {
-                    continue;
-                }
-                yield return (T)serializer.Deserialize(reader);
             }
         }
     }

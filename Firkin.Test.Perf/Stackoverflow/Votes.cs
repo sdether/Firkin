@@ -9,8 +9,8 @@ namespace Droog.Firkin.Test.Perf.Stackoverflow {
         public int PostId;
         public VoteType VoteType;
         public DateTime CreationDate;
-        public int? UserId;
-        public int? BountyAmount;
+        public int UserId;
+        public int BountyAmount;
     }
 
     public enum VoteType {
