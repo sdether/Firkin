@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 namespace Droog.Firkin.Serialization {
-    public interface IKeySerializer<TKey> {
+    public interface IByteArraySerializer<TKey> {
         byte[] Serialize(TKey key);
         TKey Deserialize(byte[] bytes);
     }

@@ -6,7 +6,6 @@ Uses
 ====
 - Quickly store and retrieve binary data by unique key
 
-
 Installation
 ============
 Currently using the driver in the GAC is not supported.  Simply copy the driver assembly somewhere and reference it in your project.  It should be deployed in your application's bin directory.  It is not necessary to reference the test assemblies.
@@ -17,9 +16,7 @@ Patches are welcome and will likely be accepted.  By submitting a patch you assi
 
 Roadmap
 =======
-- Create ``IDictionary<TKey,TValue>`` wrapper around FirkinHash
 - Create ``FirkinIndex`` to create secondary indicies into FirkinHash
-- Make stream returned by ``Get()`` lazy for large entries, so projection can be done without reading entire entry into memory
 
 Usage
 =====

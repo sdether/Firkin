@@ -48,37 +48,32 @@ namespace Droog.Firkin {
         //--- Fields ---
         private readonly long _maxFileSize;
         private readonly string _storeDirectory;
-        private readonly Func<byte[], TKey> _deserializer;
-        private readonly Func<TKey, byte[]> _serializer;
+        private readonly IByteArraySerializer<TKey> _serializer;
         private readonly object _mergeSyncRoot = new object();
         private readonly object _indexSyncRoot = new object();
 
         private Dictionary<TKey, KeyInfo> _index = new Dictionary<TKey, KeyInfo>();
         private Dictionary<ushort, IFirkinFile> _files = new Dictionary<ushort, IFirkinFile>();
         private IFirkinActiveFile _head;
-        private int _generation = 0;
 
         //--- Constructors ---
         public FirkinHash(string storeDirectory) : this(storeDirectory, DEFAULT_MAX_FILE_SIZE) { }
         public FirkinHash(string storeDirectory, long maxFileSize) : this(storeDirectory, maxFileSize, null) { }
 
-        public FirkinHash(string storeDirectory, long maxFileSize, IKeySerializer<TKey> serializer) {
+        public FirkinHash(string storeDirectory, long maxFileSize, IByteArraySerializer<TKey> serializer) {
+            if(string.IsNullOrEmpty(storeDirectory)) {
+                throw new ArgumentNullException("storeDirectory");
+            }
             _storeDirectory = storeDirectory;
             _maxFileSize = maxFileSize;
-            if(serializer != null) {
-                _serializer = serializer.Serialize;
-                _deserializer = serializer.Deserialize;
+            if(serializer == null) {
+                try {
+                    serializer = SerializerFactory.GetKeySerializer<TKey>();
+                } catch(Exception e) {
+                    throw new ArgumentException(string.Format("Cannot serialize generic parameter '{0}' without an appropriate IByteArraySerializer", typeof(TKey)), e);
+                }
             }
-            var t = typeof(TKey);
-            if(t == typeof(int)) {
-                _serializer = (TKey key) => BitConverter.GetBytes((int)(object)key);
-                _deserializer = bytes => (TKey)(object)BitConverter.ToInt32(bytes, 0);
-            } else if(t == typeof(string)) {
-                _serializer = (TKey key) => Encoding.UTF8.GetBytes((string)(object)key);
-                _deserializer = bytes => (TKey)(object)Encoding.UTF8.GetString(bytes);
-            } else {
-                throw new ArgumentException(string.Format("Cannot serialize generic parameter '{0}' without an appropriate IKeySerializer", t));
-            }
+            _serializer = serializer;
             Initialize();
         }
 
@@ -94,7 +89,7 @@ namespace Droog.Firkin {
             }
             lock(_indexSyncRoot) {
                 var keyInfo = _head.Write(new KeyValuePair() {
-                    Key = _serializer(key),
+                    Key = _serializer.Serialize(key),
                     Value = stream,
                     ValueSize = length
                 });
@@ -162,7 +157,7 @@ namespace Droog.Firkin {
                             deleted++;
                             continue;
                         }
-                        var key = _deserializer(record.Key);
+                        var key = _serializer.Deserialize(record.Key);
 
                         // TODO: do i need a lock on _index here?
                         KeyInfo info;
@@ -202,7 +197,7 @@ namespace Droog.Firkin {
                     mergeFiles.Add(file);
                     foreach(var hint in pair.Hint) {
                         var keyInfo = new KeyInfo(pair.Data.FileId, hint);
-                        var key = _deserializer(hint.Key);
+                        var key = _serializer.Deserialize(hint.Key);
                         newIndex[key] = keyInfo;
                         mergedRecords++;
                     }
@@ -215,7 +210,7 @@ namespace Droog.Firkin {
                     foreach(var file in _files.Values.Where(x => x.FileId >= head.FileId).OrderBy(x => x.FileId)) {
                         newFiles[file.FileId] = file;
                         foreach(var pair in file) {
-                            var key = _deserializer(pair.Key);
+                            var key = _serializer.Deserialize(pair.Key);
                             if(pair.Value.ValueSize == 0) {
                                 newIndex.Remove(key);
                             } else {
@@ -228,7 +223,6 @@ namespace Droog.Firkin {
                     // swap out index and file list
                     _index = newIndex;
                     _files = newFiles;
-                    _generation++;
                 }
 
                 try {
@@ -273,7 +267,7 @@ namespace Droog.Firkin {
                 }
                 _index.Remove(key);
                 _head.Write(new KeyValuePair() {
-                    Key = _serializer(key),
+                    Key = _serializer.Serialize(key),
                     Value = null,
                     ValueSize = 0
                 });
@@ -283,6 +277,65 @@ namespace Droog.Firkin {
                 CheckHead();
             }
             return true;
+        }
+
+        public IEnumerator<KeyValuePair<TKey, FirkinStream>> GetEnumerator() {
+            KeyValuePair<TKey, KeyInfo>[] pairs;
+            lock(_indexSyncRoot) {
+                pairs = _index.ToArray();
+            }
+            foreach(var pair in pairs) {
+                IFirkinFile file;
+                FirkinStream stream = null;
+                if(pair.Value.ValueSize == 0) {
+
+                    // key has been deleted, skip it
+                    continue;
+                }
+                try {
+                    stream = _files[pair.Value.FileId].ReadValue(pair.Value);
+                } catch {
+
+                    // this may fail, and that's fine, just means we may have to degrade to Get() call
+                }
+                if(stream == null) {
+                    if(pair.Value.ValueSize == 0) {
+
+                        // key was deleted while we tried to get it, skip it
+                        continue;
+                    }
+
+                    // try to get the key via Get()
+                    stream = Get(pair.Key);
+                }
+                if(stream != null) {
+                    yield return new KeyValuePair<TKey, FirkinStream>(pair.Key, stream);
+                }
+            }
+        }
+
+        public void Truncate() {
+
+            // Note: Have to acquire merge then index syncroots otherwise we're liable to run into a deadlock
+            lock(_mergeSyncRoot) {
+                lock(_indexSyncRoot) {
+                    foreach(var file in _files.Values) {
+                        var filename = file.Filename;
+                        file.Dispose();
+                        File.Delete(filename);
+                    }
+                    _files.Clear();
+                    _index.Clear();
+                    _head = FirkinFile.CreateActive(GetDataFilename(1), 1);
+                    _files[_head.FileId] = _head;
+                }
+            }
+        }
+
+        public void Dispose() {
+            foreach(var file in _files.Values) {
+                file.Dispose();
+            }
         }
 
         private void CheckHead() {
@@ -325,7 +378,7 @@ namespace Droog.Firkin {
                     var hintFile = new FirkinHintFile(hintFilename);
                     foreach(var hint in hintFile) {
                         var keyInfo = new KeyInfo(fileInfo.FileId, hint);
-                        var key = _deserializer(hint.Key);
+                        var key = _serializer.Deserialize(hint.Key);
                         _index[key] = keyInfo;
                         count++;
                     }
@@ -333,7 +386,7 @@ namespace Droog.Firkin {
                     _log.DebugFormat("read {0} record markers from hint file {1}", count, fileInfo.FileId);
                 } else {
                     foreach(var pair in file) {
-                        var key = _deserializer(pair.Key);
+                        var key = _serializer.Deserialize(pair.Key);
                         maxSerial = pair.Value.Serial;
                         if(pair.Value.ValueSize == 0) {
                             _index.Remove(key);
@@ -396,53 +449,8 @@ namespace Droog.Firkin {
             return fileId;
         }
 
-        public void Dispose() {
-            foreach(var file in _files.Values) {
-                file.Dispose();
-            }
-        }
-
-        public IEnumerator<KeyValuePair<TKey, FirkinStream>> GetEnumerator() {
-            KeyValuePair<TKey, KeyInfo>[] pairs;
-            lock(_indexSyncRoot) {
-                pairs = _index.ToArray();
-            }
-            foreach(var pair in pairs) {
-                IFirkinFile file;
-                FirkinStream stream = null;
-                if(pair.Value.ValueSize == 0) {
-
-                    // key has been deleted, skip it
-                    continue;
-                }
-                try {
-                    stream = _files[pair.Value.FileId].ReadValue(pair.Value);
-                } catch {
-
-                    // this may fail, and that's fine, just means we may have to degrade to Get() call
-                }
-                if(stream == null) {
-                    if(pair.Value.ValueSize == 0) {
-
-                        // key was deleted while we tried to get it, skip it
-                        continue;
-                    }
-
-                    // try to get the key via Get()
-                    stream = Get(pair.Key);
-                }
-                if(stream != null) {
-                    yield return new KeyValuePair<TKey, FirkinStream>(pair.Key, stream);
-                }
-            }
-        }
-
         IEnumerator IEnumerable.GetEnumerator() {
             return GetEnumerator();
-        }
-
-        public void Truncate() {
-            throw new NotImplementedException();
         }
     }
 }

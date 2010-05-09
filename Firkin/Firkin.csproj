@@ -54,7 +54,7 @@
     <Compile Include="FirkinDictionary.cs" />
     <Compile Include="FirkinHash.cs" />
     <Compile Include="IO\FirkinFile.cs" />
-    <Compile Include="Serialization\IKeySerializer.cs" />
+    <Compile Include="Serialization\IByteArraySerializer.cs" />
     <Compile Include="Data\KeyInfo.cs" />
     <Compile Include="Data\KeyValueRecord.cs" />
     <Compile Include="Data\KeyValuePair.cs" />
@@ -67,6 +67,9 @@
     <Compile Include="IO\StreamSyncRoot.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="FirkinStream.cs" />
+    <Compile Include="Serialization\KeySerializationLambdaWrapper.cs" />
+    <Compile Include="Serialization\SerializerFactory.cs" />
+    <Compile Include="Serialization\ValueSerializationLambdaWrapper.cs" />
     <Compile Include="Util\ArrayEx.cs" />
     <Compile Include="Util\StreamEx.cs" />
   </ItemGroup>

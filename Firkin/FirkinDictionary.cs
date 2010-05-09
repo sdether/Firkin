@@ -30,7 +30,7 @@ namespace Droog.Firkin {
         private readonly IStreamSerializer<TValue> _valueSerializer;
 
         //--- Constructors ---
-        public FirkinDictionary(string storageDirectory, long maxFileSize, IKeySerializer<TKey> keySerializer, IStreamSerializer<TValue> valueSerializer) {
+        public FirkinDictionary(string storageDirectory, long maxFileSize, IByteArraySerializer<TKey> keySerializer, IStreamSerializer<TValue> valueSerializer) {
             _valueSerializer = valueSerializer;
             _hash = new FirkinHash<TKey>(storageDirectory, maxFileSize, keySerializer);
         }
