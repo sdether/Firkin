@@ -68,7 +68,7 @@ namespace Droog.Firkin {
             _maxFileSize = maxFileSize;
             if(serializer == null) {
                 try {
-                    serializer = SerializerFactory.GetKeySerializer<TKey>();
+                    serializer = SerializerRepository.GetKeySerializer<TKey>();
                 } catch(Exception e) {
                     throw new ArgumentException(string.Format("Cannot serialize generic parameter '{0}' without an appropriate IByteArraySerializer", typeof(TKey)), e);
                 }

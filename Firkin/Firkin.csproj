@@ -50,6 +50,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Data\HintRecord.cs" />
+    <Compile Include="Serialization\BinaryFormatterGenerator.cs" />
+    <Compile Include="Serialization\ISerializerGenerator.cs" />
     <Compile Include="Serialization\IStreamSerializer.cs" />
     <Compile Include="FirkinDictionary.cs" />
     <Compile Include="FirkinHash.cs" />
@@ -68,7 +70,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="FirkinStream.cs" />
     <Compile Include="Serialization\KeySerializationLambdaWrapper.cs" />
-    <Compile Include="Serialization\SerializerFactory.cs" />
+    <Compile Include="Serialization\SerializerRepository.cs" />
     <Compile Include="Serialization\ValueSerializationLambdaWrapper.cs" />
     <Compile Include="Util\ArrayEx.cs" />
     <Compile Include="Util\StreamEx.cs" />
