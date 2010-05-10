@@ -26,7 +26,7 @@ namespace Droog.Firkin.Serialization {
             if(!t.IsSerializable) {
                 return null;
             }
-            return new KeySerializationLambdaWrapper<TKey>() {
+            return new ByteArraySerializationLambdaWrapper<TKey>() {
                 Serializer = key => {
                     using(var ms = new MemoryStream()) {
                         _serializer.Serialize(ms, key);
@@ -46,7 +46,7 @@ namespace Droog.Firkin.Serialization {
             if(!t.IsSerializable) {
                 return null;
             }
-            return new ValueSerializationLambdaWrapper<TValue>() {
+            return new StreamSerializationLambdaWrapper<TValue>() {
                 Serializer = (stream, value) => _serializer.Serialize(stream,value),
                 Deserializer = stream => (TValue)_serializer.Deserialize(stream)
             };

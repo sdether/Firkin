@@ -36,6 +36,7 @@ namespace Droog.Firkin {
         }
 
         public FirkinDictionary(string storageDirectory) {
+            _valueSerializer = SerializerRepository.GetStreamSerializer<TValue>();
             _hash = new FirkinHash<TKey>(storageDirectory);
         }
 
@@ -55,7 +56,7 @@ namespace Droog.Firkin {
 
         public void Add(TKey key, TValue value) {
 
-            // Note: This behaves differently from normal dictionaries, as in it won't throw on collision
+            // Note: This behaves differently from normal dictionaries, as in, it won't throw on collision
             var stream = GetStream(value);
             _hash.Put(key, stream, stream.Length);
         }
@@ -81,6 +82,7 @@ namespace Droog.Firkin {
         }
 
         public bool Remove(KeyValuePair<TKey, TValue> item) {
+
             // TODO: race condition.. have put a lock around all _hash accesses to avoid
             return Contains(item) && _hash.Delete(item.Key);
         }

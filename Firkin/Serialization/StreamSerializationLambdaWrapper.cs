@@ -2,7 +2,7 @@ using System;
 using System.IO;
 
 namespace Droog.Firkin.Serialization {
-    public class ValueSerializationLambdaWrapper<TValue> : IStreamSerializer<TValue> {
+    public class StreamSerializationLambdaWrapper<TValue> : IStreamSerializer<TValue> {
         public Action<Stream, TValue> Serializer;
         public Func<Stream, TValue> Deserializer;
 

@@ -27,112 +27,12 @@ namespace Droog.Firkin.Serialization {
 
         //--- Class Fields ---
         private static ISerializerGenerator _serializerGenerator;
-        private static readonly Dictionary<Type, object> _keySerializers = new Dictionary<Type, object>();
-        private static readonly Dictionary<Type, object> _valueSerializers = new Dictionary<Type, object>();
+        private static readonly Dictionary<Type, object> _byteArraySerializers = new Dictionary<Type, object>();
+        private static readonly Dictionary<Type, object> _streamSerializers = new Dictionary<Type, object>();
 
         //--- Class Constructor ---
         static SerializerRepository() {
-            SerializerGenerator = new BinaryFormatterGenerator();
-
-            // short default serializers
-            RegisterKeySerializer(new KeySerializationLambdaWrapper<short>() {
-                Serializer = key => BitConverter.GetBytes(key),
-                Deserializer = bytes => BitConverter.ToInt16(bytes, 0)
-            });
-            RegisterValueSerializer(new ValueSerializationLambdaWrapper<short>() {
-                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
-                Deserializer = stream => BitConverter.ToInt16(stream.ReadBytes(), 0)
-            });
-
-            // ushort default serializers
-            RegisterKeySerializer(new KeySerializationLambdaWrapper<ushort>() {
-                Serializer = key => BitConverter.GetBytes(key),
-                Deserializer = bytes => BitConverter.ToUInt16(bytes, 0)
-            });
-            RegisterValueSerializer(new ValueSerializationLambdaWrapper<ushort>() {
-                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
-                Deserializer = stream => BitConverter.ToUInt16(stream.ReadBytes(), 0)
-            });
-
-            // int default serializers
-            RegisterKeySerializer(new KeySerializationLambdaWrapper<int>() {
-                Serializer = key => BitConverter.GetBytes(key),
-                Deserializer = bytes => BitConverter.ToInt32(bytes, 0)
-            });
-            RegisterValueSerializer(new ValueSerializationLambdaWrapper<int>() {
-                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
-                Deserializer = stream => BitConverter.ToInt32(stream.ReadBytes(), 0)
-            });
-
-            // uint default serializers
-            RegisterKeySerializer(new KeySerializationLambdaWrapper<uint>() {
-                Serializer = key => BitConverter.GetBytes(key),
-                Deserializer = bytes => BitConverter.ToUInt32(bytes, 0)
-            });
-            RegisterValueSerializer(new ValueSerializationLambdaWrapper<uint>() {
-                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
-                Deserializer = stream => BitConverter.ToUInt32(stream.ReadBytes(), 0)
-            });
-
-            // long default serializers
-            RegisterKeySerializer(new KeySerializationLambdaWrapper<long>() {
-                Serializer = key => BitConverter.GetBytes(key),
-                Deserializer = bytes => BitConverter.ToInt64(bytes, 0)
-            });
-            RegisterValueSerializer(new ValueSerializationLambdaWrapper<long>() {
-                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
-                Deserializer = stream => BitConverter.ToInt64(stream.ReadBytes(), 0)
-            });
-
-            // ulong default serializers
-            RegisterKeySerializer(new KeySerializationLambdaWrapper<ulong>() {
-                Serializer = key => BitConverter.GetBytes(key),
-                Deserializer = bytes => BitConverter.ToUInt64(bytes, 0)
-            });
-            RegisterValueSerializer(new ValueSerializationLambdaWrapper<ulong>() {
-                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
-                Deserializer = stream => BitConverter.ToUInt64(stream.ReadBytes(), 0)
-            });
-
-            // float default serializers
-            RegisterKeySerializer(new KeySerializationLambdaWrapper<float>() {
-                Serializer = key => BitConverter.GetBytes(key),
-                Deserializer = bytes => BitConverter.ToSingle(bytes, 0)
-            });
-            RegisterValueSerializer(new ValueSerializationLambdaWrapper<float>() {
-                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
-                Deserializer = stream => BitConverter.ToSingle(stream.ReadBytes(), 0)
-            });
-
-            // double default serializers
-            RegisterKeySerializer(new KeySerializationLambdaWrapper<double>() {
-                Serializer = key => BitConverter.GetBytes(key),
-                Deserializer = bytes => BitConverter.ToDouble(bytes, 0)
-            });
-            RegisterValueSerializer(new ValueSerializationLambdaWrapper<double>() {
-                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
-                Deserializer = stream => BitConverter.ToDouble(stream.ReadBytes(), 0)
-            });
-
-            // double default serializers
-            RegisterKeySerializer(new KeySerializationLambdaWrapper<double>() {
-                Serializer = key => BitConverter.GetBytes(key),
-                Deserializer = bytes => BitConverter.ToDouble(bytes, 0)
-            });
-            RegisterValueSerializer(new ValueSerializationLambdaWrapper<double>() {
-                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
-                Deserializer = stream => BitConverter.ToDouble(stream.ReadBytes(), 0)
-            });
-
-            // string default serializers
-            RegisterKeySerializer(new KeySerializationLambdaWrapper<string>() {
-                Serializer = key => Encoding.UTF8.GetBytes(key),
-                Deserializer = bytes => Encoding.UTF8.GetString(bytes)
-            });
-            RegisterValueSerializer(new ValueSerializationLambdaWrapper<string>() {
-                Serializer = (stream, value) => stream.Write(Encoding.UTF8.GetBytes(value)),
-                Deserializer = stream => Encoding.UTF8.GetString(stream.ReadBytes())
-            });
+            Initialize();
         }
 
         //--- Class Properties ---
@@ -147,74 +47,178 @@ namespace Droog.Firkin.Serialization {
         }
 
         //--- Class Methods ---
-        public static void RegisterKeySerializer<TKey>(IByteArraySerializer<TKey> serializer) {
+        public static void RegisterByteArraySerializer<T>(IByteArraySerializer<T> serializer) {
             if(serializer == null) {
                 throw new ArgumentNullException("serializer");
             }
-            lock(_keySerializers) {
-                _keySerializers[typeof(TKey)] = serializer;
+            lock(_byteArraySerializers) {
+                _byteArraySerializers[typeof(T)] = serializer;
             }
         }
 
-        public static void RegisterValueSerializer<TValue>(IStreamSerializer<TValue> serializer) {
+        public static void RegisterStreamSerializer<T>(IStreamSerializer<T> serializer) {
             if(serializer == null) {
                 throw new ArgumentNullException("serializer");
             }
-            lock(_valueSerializers) {
-                _valueSerializers[typeof(TValue)] = serializer;
+            lock(_streamSerializers) {
+                _streamSerializers[typeof(T)] = serializer;
             }
         }
 
-        public static IByteArraySerializer<TKey> GetKeySerializer<TKey>() {
-            return GetKeySerializer<TKey>(true);
+        public static IByteArraySerializer<T> GetByteArraySerializer<T>() {
+            return GetByteArraySerializer<T>(true);
         }
 
-        private static IByteArraySerializer<TKey> GetKeySerializer<TKey>(bool throwOnUnkown) {
-            var t = typeof(TKey);
+        private static IByteArraySerializer<T> GetByteArraySerializer<T>(bool throwOnUnkown) {
+            var t = typeof(T);
             object serializer;
-            lock(_keySerializers) {
-                if(!_keySerializers.TryGetValue(t, out serializer)) {
-                    serializer = _serializerGenerator.GenerateByteArraySerializer<TKey>();
+            lock(_byteArraySerializers) {
+                if(!_byteArraySerializers.TryGetValue(t, out serializer)) {
+                    serializer = _serializerGenerator.GenerateByteArraySerializer<T>();
                     if(serializer == null) {
                         if(throwOnUnkown) {
                             throw new KeyNotFoundException(string.Format("No key serializer for type {0} found.", t));
                         }
                         return null;
                     }
-                    _keySerializers[t] = serializer;
+                    _byteArraySerializers[t] = serializer;
                 }
             }
-            return (IByteArraySerializer<TKey>)serializer;
+            return (IByteArraySerializer<T>)serializer;
         }
 
-        public static IStreamSerializer<TValue> GetValueSerializer<TValue>() {
-            return GetValueSerializer<TValue>(true);
+        public static IStreamSerializer<T> GetStreamSerializer<T>() {
+            return GetStreamSerializer<T>(true);
         }
 
-        private static IStreamSerializer<TValue> GetValueSerializer<TValue>(bool throwOnUnkown) {
-            var t = typeof(TValue);
+        private static IStreamSerializer<T> GetStreamSerializer<T>(bool throwOnUnkown) {
+            var t = typeof(T);
             object serializer;
-            lock(_valueSerializers) {
-                if(!_valueSerializers.TryGetValue(t, out serializer)) {
-                    serializer = _serializerGenerator.GenerateByteArraySerializer<TValue>();
+            lock(_streamSerializers) {
+                if(!_streamSerializers.TryGetValue(t, out serializer)) {
+                    serializer = _serializerGenerator.GenerateStreamSerializer<T>();
                     if(serializer == null) {
                         if(throwOnUnkown) {
                             throw new KeyNotFoundException(string.Format("No value serializer for type {0} found.", t));
                         }
                         return null;
                     }
-                    _valueSerializers[t] = serializer;
+                    _streamSerializers[t] = serializer;
                 }
             }
-            return (IStreamSerializer<TValue>)serializer;
+            return (IStreamSerializer<T>)serializer;
         }
 
-        public static bool HasKeySerializer<TKey>() {
-            return GetKeySerializer<TKey>() == null;
+        public static bool HasByteArraySerializer<T>() {
+            return GetByteArraySerializer<T>(false) != null;
         }
 
-        public static bool HasValueSerializer<TValue>() {
-            return GetValueSerializer<TValue>() == null;
+        public static bool HasStreamSerializer<T>() {
+            return GetStreamSerializer<T>(false) != null;
+        }
+
+        public static void Reset() {
+            lock(_byteArraySerializers) {
+                lock(_streamSerializers) {
+                    _byteArraySerializers.Clear();
+                    _streamSerializers.Clear();
+                    Initialize();
+                }
+            }
+        }
+
+        private static void Initialize() {
+            SerializerGenerator = new BinaryFormatterGenerator();
+
+            // short default serializers
+            RegisterByteArraySerializer(new ByteArraySerializationLambdaWrapper<short>() {
+                Serializer = value => BitConverter.GetBytes(value),
+                Deserializer = bytes => BitConverter.ToInt16(bytes, 0)
+            });
+            RegisterStreamSerializer(new StreamSerializationLambdaWrapper<short>() {
+                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
+                Deserializer = stream => BitConverter.ToInt16(stream.ReadBytes(), 0)
+            });
+
+            // ushort default serializers
+            RegisterByteArraySerializer(new ByteArraySerializationLambdaWrapper<ushort>() {
+                Serializer = value => BitConverter.GetBytes(value),
+                Deserializer = bytes => BitConverter.ToUInt16(bytes, 0)
+            });
+            RegisterStreamSerializer(new StreamSerializationLambdaWrapper<ushort>() {
+                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
+                Deserializer = stream => BitConverter.ToUInt16(stream.ReadBytes(), 0)
+            });
+
+            // int default serializers
+            RegisterByteArraySerializer(new ByteArraySerializationLambdaWrapper<int>() {
+                Serializer = value => BitConverter.GetBytes(value),
+                Deserializer = bytes => BitConverter.ToInt32(bytes, 0)
+            });
+            RegisterStreamSerializer(new StreamSerializationLambdaWrapper<int>() {
+                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
+                Deserializer = stream => BitConverter.ToInt32(stream.ReadBytes(), 0)
+            });
+
+            // uint default serializers
+            RegisterByteArraySerializer(new ByteArraySerializationLambdaWrapper<uint>() {
+                Serializer = value => BitConverter.GetBytes(value),
+                Deserializer = bytes => BitConverter.ToUInt32(bytes, 0)
+            });
+            RegisterStreamSerializer(new StreamSerializationLambdaWrapper<uint>() {
+                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
+                Deserializer = stream => BitConverter.ToUInt32(stream.ReadBytes(), 0)
+            });
+
+            // long default serializers
+            RegisterByteArraySerializer(new ByteArraySerializationLambdaWrapper<long>() {
+                Serializer = value => BitConverter.GetBytes(value),
+                Deserializer = bytes => BitConverter.ToInt64(bytes, 0)
+            });
+            RegisterStreamSerializer(new StreamSerializationLambdaWrapper<long>() {
+                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
+                Deserializer = stream => BitConverter.ToInt64(stream.ReadBytes(), 0)
+            });
+
+            // ulong default serializers
+            RegisterByteArraySerializer(new ByteArraySerializationLambdaWrapper<ulong>() {
+                Serializer = value => BitConverter.GetBytes(value),
+                Deserializer = bytes => BitConverter.ToUInt64(bytes, 0)
+            });
+            RegisterStreamSerializer(new StreamSerializationLambdaWrapper<ulong>() {
+                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
+                Deserializer = stream => BitConverter.ToUInt64(stream.ReadBytes(), 0)
+            });
+
+            // float default serializers
+            RegisterByteArraySerializer(new ByteArraySerializationLambdaWrapper<float>() {
+                Serializer = value => BitConverter.GetBytes(value),
+                Deserializer = bytes => BitConverter.ToSingle(bytes, 0)
+            });
+            RegisterStreamSerializer(new StreamSerializationLambdaWrapper<float>() {
+                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
+                Deserializer = stream => BitConverter.ToSingle(stream.ReadBytes(), 0)
+            });
+
+            // double default serializers
+            RegisterByteArraySerializer(new ByteArraySerializationLambdaWrapper<double>() {
+                Serializer = value => BitConverter.GetBytes(value),
+                Deserializer = bytes => BitConverter.ToDouble(bytes, 0)
+            });
+            RegisterStreamSerializer(new StreamSerializationLambdaWrapper<double>() {
+                Serializer = (stream, value) => stream.Write(BitConverter.GetBytes(value)),
+                Deserializer = stream => BitConverter.ToDouble(stream.ReadBytes(), 0)
+            });
+
+            // string default serializers
+            RegisterByteArraySerializer(new ByteArraySerializationLambdaWrapper<string>() {
+                Serializer = value => Encoding.UTF8.GetBytes(value),
+                Deserializer = bytes => Encoding.UTF8.GetString(bytes)
+            });
+            RegisterStreamSerializer(new StreamSerializationLambdaWrapper<string>() {
+                Serializer = (stream, value) => stream.Write(Encoding.UTF8.GetBytes(value)),
+                Deserializer = stream => Encoding.UTF8.GetString(stream.ReadBytes())
+            });
         }
     }
 }

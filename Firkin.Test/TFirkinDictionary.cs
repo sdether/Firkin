@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Firkin 
  * Copyright (C) 2010 Arne F. Claassen
  * http://www.claassen.net/geek/blog geekblog [at] claassen [dot] net
@@ -15,9 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-namespace Droog.Firkin.Serialization {
-    public interface ISerializerGenerator {
-        IByteArraySerializer<T> GenerateByteArraySerializer<T>();
-        IStreamSerializer<T> GenerateStreamSerializer<T>();
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using NUnit.Framework;
+
+namespace Droog.Firkin.Test {
+    
+    [TestFixture]
+    public class TFirkinDictionary {
     }
 }
