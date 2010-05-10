@@ -16,14 +16,46 @@
  * limitations under the License.
  */
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using System.IO;
 using NUnit.Framework;
 
 namespace Droog.Firkin.Test {
     
     [TestFixture]
     public class TFirkinDictionary {
+
+        private FirkinDictionary<int, string> _dictionary;
+        private string _path;
+
+        [SetUp]
+        public void Setup() {
+            _path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        }
+
+        public void CreateDictionary() {
+            _dictionary = new FirkinDictionary<int,string>(_path);
+        }
+
+        [TearDown]
+        public void Teardown() {
+            _dictionary.Dispose();
+            Directory.Delete(_path, true);
+        }
+
+        [Test]
+        public void Can_store_retrieve_items_in_dictionary() {
+            CreateDictionary();
+            _dictionary.Add(1234, "foobar");
+            Assert.AreEqual("foobar", _dictionary[1234]);
+        }
+
+        [Test]
+        public void Can_store_retrieve_items_in_dictionary_with_reload() {
+            CreateDictionary();
+            _dictionary.Add(1234, "foobar");
+            _dictionary.Dispose();
+            CreateDictionary();
+            Assert.AreEqual("foobar", _dictionary[1234]);
+        }
     }
 }

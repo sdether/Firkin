@@ -23,7 +23,7 @@ using Droog.Firkin.Serialization;
 using System.Linq;
 
 namespace Droog.Firkin {
-    public class FirkinDictionary<TKey, TValue> : IDictionary<TKey, TValue> {
+    public class FirkinDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDisposable {
 
         //--- Fields ---
         private readonly IFirkinHash<TKey> _hash;
@@ -140,6 +140,10 @@ namespace Droog.Firkin {
             _valueSerializer.Serialize(stream, value);
             stream.Position = 0;
             return stream;
+        }
+
+        public void Dispose() {
+            _hash.Dispose();
         }
     }
 }
