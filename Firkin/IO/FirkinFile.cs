@@ -27,7 +27,7 @@ namespace Droog.Firkin.IO {
     public class FirkinFile : IFirkinArchiveFile, IFirkinActiveFile {
 
         private const int HASH_SIZE = 16;
-        private const int HEADER_SIZE = HASH_SIZE + 4 + 4 + 4;
+        public const int HEADER_SIZE = HASH_SIZE + 4 + 4 + 4;
         private const int SERIAL_OFFSET = HASH_SIZE;
         private const int KEY_SIZE_OFFSET = SERIAL_OFFSET + 4;
         private const int VALUE_SIZE_OFFSET = KEY_SIZE_OFFSET + 4;

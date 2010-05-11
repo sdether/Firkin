@@ -15,8 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+using System;
+using Droog.Firkin.IO;
+
 namespace Droog.Firkin.Data {
     public struct KeyInfo {
+
         public ushort FileId;
         public uint Serial;
         public uint ValueSize;
@@ -27,6 +31,10 @@ namespace Droog.Firkin.Data {
             Serial = hint.Serial;
             ValueSize = hint.ValueSize;
             ValuePosition = hint.ValuePosition;
+        }
+
+        public uint GetSize() {
+            return FirkinFile.HEADER_SIZE + ValueSize;
         }
     }
 }
