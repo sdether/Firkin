@@ -16,7 +16,9 @@ Patches are welcome and will likely be accepted.  By submitting a patch you assi
 
 Roadmap
 =======
-- Create ``FirkinIndex`` to create secondary indicies into FirkinHash
+- Create ``FirkinIndex`` to create secondary indicies into a ``FirkinHash``
+- Add size (total and active) to ``FirkinHash`` to provide a metric to base merge use on
+- Put ``FirkinHash`` through some proper benchmarking and concurrency testing
 
 Usage
 =====
@@ -48,6 +50,13 @@ Usage of base store, ``FirkinHash<TKey>``
 
   // merge log files to remove overwritten and deleted entries
   store.Merge(); // does not block reads or writes (mostly)
+  
+Or use ``FirkinDictionary<TKey,TValue>`` like any ``IDictionary``
+
+::
+
+  // create new disk bound dictionary
+  var dictionary = new FirkinDictionary<string,string>(storageDirectory);
 
 Some unscientific perf data
 ===========================

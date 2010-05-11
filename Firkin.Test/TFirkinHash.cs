@@ -222,7 +222,7 @@ namespace Droog.Firkin.Test {
             stream = GetStream("bar1x");
             _hash.Put("foo1", stream, stream.Length);
             _hash.Merge();
-            Assert.AreEqual(4,_hash.Count);
+            Assert.AreEqual(4, _hash.Count);
             Assert.AreEqual("bar3", GetValue<string>(_hash.Get("foo3")));
             Assert.AreEqual("bar1x", GetValue<string>(_hash.Get("foo1")));
             Assert.AreEqual("bar2", GetValue<string>(_hash.Get("foo2")));
@@ -255,8 +255,8 @@ namespace Droog.Firkin.Test {
         [Test]
         public void Writing_empty_stream_is_a_delete() {
             CreateHash();
-            _hash.Put("foo",new MemoryStream(),0);
-            Assert.AreEqual(0,_hash.Count);
+            _hash.Put("foo", new MemoryStream(), 0);
+            Assert.AreEqual(0, _hash.Count);
             Assert.IsNull(_hash.Get("foo"));
         }
 
@@ -312,7 +312,7 @@ namespace Droog.Firkin.Test {
         [Test]
         public void Read_write_delete_consistency_with_merge_before_read() {
             var r = new Random(1234);
-            _hash = new FirkinHash<string>(_path, 10*1024);
+            _hash = new FirkinHash<string>(_path, 10 * 1024);
             var dictionary = new Dictionary<string, byte[]>();
             for(var i = 0; i < 200; i++) {
                 var k = "k" + r.Next(100);
@@ -369,8 +369,38 @@ namespace Droog.Firkin.Test {
             }
         }
 
+        [Test]
+        public void Can_truncate_hash() {
+            var r = new Random(1234);
+            CreateHash();
+            for(var i = 0; i < 1000; i++) {
+                var k = "k" + i;
+                var v = GetRandomBytes(r);
+                _hash.Put(k, GetStream(v), v.Length);
+            }
+            Assert.AreEqual(1000, _hash.Count);
+            _hash.Truncate();
+            Assert.AreEqual(0, _hash.Count);
+        }
+
+        [Test]
+        public void Can_truncate_hash_and_stays_truncated_after_reload() {
+            var r = new Random(1234);
+            CreateHash();
+            for(var i = 0; i < 1000; i++) {
+                var k = "k" + i;
+                var v = GetRandomBytes(r);
+                _hash.Put(k, GetStream(v), v.Length);
+            }
+            Assert.AreEqual(1000, _hash.Count);
+            _hash.Truncate();
+            _hash.Dispose();
+            CreateHash();
+            Assert.AreEqual(0, _hash.Count);
+        }
+
         private byte[] GetRandomBytes(Random r) {
-            var bytes = new byte[r.Next(50)+50];
+            var bytes = new byte[r.Next(50) + 50];
             for(var i = 0; i < bytes.Length; i++) {
                 bytes[i] = (byte)(r.Next(30) + 10);
             }
