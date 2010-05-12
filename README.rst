@@ -17,7 +17,6 @@ Patches are welcome and will likely be accepted.  By submitting a patch you assi
 Roadmap
 =======
 - Create ``FirkinIndex`` to create secondary indicies into a ``FirkinHash``
-- Add size (total and active) to ``FirkinHash`` to provide a metric to base merge use on
 - Put ``FirkinHash`` through some proper benchmarking and concurrency testing
 
 Usage

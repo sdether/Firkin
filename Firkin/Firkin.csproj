@@ -50,6 +50,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Data\HintRecord.cs" />
+    <Compile Include="IFirkinIndex.cs" />
     <Compile Include="Serialization\BinaryFormatterGenerator.cs" />
     <Compile Include="Serialization\ISerializerGenerator.cs" />
     <Compile Include="Serialization\IStreamSerializer.cs" />
