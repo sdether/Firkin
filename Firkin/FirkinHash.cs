@@ -108,7 +108,7 @@ namespace Droog.Firkin {
                 if(diff > 0) {
                     _activeSize += (ulong)diff;
                 } else {
-                    _activeSize -= (ulong)(-1 * diff);
+                    _activeSize += (ulong)(-1 * diff);
                 }
                 _totalSize += (ulong)newSize;
                 _index[key] = keyInfo;
@@ -224,6 +224,7 @@ namespace Droog.Firkin {
                     pair.Hint.Dispose();
                     newTotalSize += (ulong)file.Size;
                 }
+                newActiveSize = newTotalSize;
                 _log.DebugFormat("read {0} records from hint files", mergedRecords);
 
                 // add records && files not part of merge
@@ -232,13 +233,17 @@ namespace Droog.Firkin {
                         newFiles[file.FileId] = file;
                         foreach(var pair in file) {
                             var key = _serializer.Deserialize(pair.Key);
+                            KeyInfo keyInfo;
+                            ulong old = 0;
+                            if(newIndex.TryGetValue(key, out keyInfo)) {
+                                old = (keyInfo.GetSize() + (ulong)pair.Key.Length);
+                                newActiveSize -= old;
+                            }
                             if(pair.Value.ValueSize == 0) {
-                                if(newIndex.Remove(key)) {
-                                    newActiveSize -= (pair.Value.GetSize() + (ulong)pair.Key.Length);
-                                }
+                                newIndex.Remove(key);
                             } else {
                                 newIndex[key] = pair.Value;
-                                newActiveSize += pair.Value.GetSize() + (ulong)pair.Key.Length;
+                                newActiveSize += (pair.Value.GetSize() + (ulong)pair.Key.Length);
                             }
                             _log.DebugFormat("added entries from file {0}: {1}", file.FileId, newIndex.Count);
                         }
@@ -303,12 +308,7 @@ namespace Droog.Firkin {
                 // zero out the value size, so that an iterator can recognize the info as deleted
                 info.ValueSize = 0;
                 var newSize = ((int)info.GetSize() + keyBytes.Length);
-                var diff = newSize - oldSize;
-                if(diff > 0) {
-                    _activeSize += (ulong)diff;
-                } else {
-                    _activeSize -= (ulong)(-1 * diff);
-                }
+                _activeSize -= (ulong)oldSize;
                 _totalSize += (ulong)newSize;
                 CheckHead();
             }
@@ -417,23 +417,27 @@ namespace Droog.Firkin {
                         var key = _serializer.Deserialize(hint.Key);
                         _index[key] = keyInfo;
                         count++;
-                        _activeSize += keyInfo.GetSize() + (ulong)hint.Key.Length;
                     }
                     hintFile.Dispose();
                     _log.DebugFormat("read {0} record markers from hint file {1}", count, fileInfo.FileId);
+                    _activeSize += (ulong)file.Size;
                 } else {
                     foreach(var pair in file) {
                         var key = _serializer.Deserialize(pair.Key);
                         maxSerial = pair.Value.Serial;
+                        KeyInfo keyInfo;
+                        ulong old = 0;
+                        if(_index.TryGetValue(key, out keyInfo)) {
+                            old = (keyInfo.GetSize() + (ulong)pair.Key.Length);
+                            _activeSize -= old;
+                        }
                         if(pair.Value.ValueSize == 0) {
-                            if(_index.Remove(key)) {
-                                _activeSize -= (pair.Value.GetSize() + (ulong)pair.Key.Length);
-                            }
+                            _index.Remove(key);
                             delete++;
                         } else {
                             _index[key] = pair.Value;
                             count++;
-                            _activeSize += pair.Value.GetSize() + (ulong)pair.Key.Length;
+                            _activeSize += (pair.Value.GetSize() + (ulong)pair.Key.Length);
                         }
                     }
                     _log.DebugFormat("read {0} record and {1} delete markers from data file {2}", count, delete, fileInfo.FileId);

@@ -30,5 +30,7 @@ namespace Droog.Firkin {
         void Truncate();
         int Count { get; }
         IEnumerable<TKey> Keys { get; }
+        ulong ActiveSize { get; }
+        ulong TotalSize { get; }
     }
 }

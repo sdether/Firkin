@@ -19,6 +19,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Droog.Firkin.IO;
+using Droog.Firkin.Serialization;
 using log4net;
 using NUnit.Framework;
 using Droog.Firkin.Util;
@@ -399,6 +401,201 @@ namespace Droog.Firkin.Test {
             Assert.AreEqual(0, _hash.Count);
         }
 
+        [Test]
+        public void New_hash_has_no_size() {
+            CreateHash();
+            Assert.AreEqual(0, _hash.ActiveSize);
+            Assert.AreEqual(0, _hash.TotalSize);
+        }
+
+        [Test]
+        public void Active_and_total_size_reflect_put_data() {
+            CreateHash();
+            var key = "foo";
+            var keyLength = SerializerRepository.GetByteArraySerializer<string>().Serialize(key).Length;
+            var value = GetStream("bar");
+            _hash.Put(key,value,value.Length);
+            var entrySize = FirkinFile.HEADER_SIZE + keyLength + value.Length;
+            Assert.AreEqual(entrySize, _hash.ActiveSize);
+            Assert.AreEqual(entrySize, _hash.TotalSize);
+        }
+
+        [Test]
+        public void Deleting_entry_removes_entire_entry_from_active() {
+            CreateHash();
+            var key = "foo";
+            var keyLength = SerializerRepository.GetByteArraySerializer<string>().Serialize(key).Length;
+            var value = GetStream("bar");
+            _hash.Put(key, value, value.Length);
+            _hash.Delete(key);
+            Assert.AreEqual(0, _hash.ActiveSize);
+        }
+
+        [Test]
+        public void Deleting_entry_adds_key_and_header_to_total_size() {
+            CreateHash();
+            var key = "foo";
+            var keyLength = SerializerRepository.GetByteArraySerializer<string>().Serialize(key).Length;
+            var value = GetStream("bar");
+            _hash.Put(key, value, value.Length);
+            _hash.Delete(key);
+            long entrySize = FirkinFile.HEADER_SIZE + keyLength;
+            entrySize += entrySize;
+            entrySize += value.Length;
+            Assert.AreEqual(entrySize, _hash.TotalSize);
+        }
+
+        [Test]
+        public void After_merge_active_and_total_are_same_for_merged_chunks_with_delete() {
+            _hash = new FirkinHash<string>(_path, 60);
+            var stream = GetStream("bar1");
+            _hash.Put("foo1", stream, stream.Length);
+            stream = GetStream("bar2");
+            _hash.Put("foo2", stream, stream.Length);
+            stream = GetStream("bar3");
+            _hash.Put("foo3", stream, stream.Length);
+            stream = GetStream("bar4");
+            _hash.Delete("foo1");
+            _hash.Put("foo4", stream, stream.Length);
+            Assert.AreNotEqual(_hash.ActiveSize, _hash.TotalSize);
+            _hash.Merge();
+            Assert.AreEqual(_hash.ActiveSize, _hash.TotalSize);
+        }
+
+        [Test]
+        public void After_merge_active_and_total_are_same_for_merged_chunks_with_replace() {
+            _hash = new FirkinHash<string>(_path, 60);
+            var stream = GetStream("bar1");
+            _hash.Put("foo1", stream, stream.Length);
+            stream = GetStream("bar2");
+            _hash.Put("foo2", stream, stream.Length);
+            stream = GetStream("bar3");
+            _hash.Put("foo3", stream, stream.Length);
+            stream = GetStream("bar4");
+            _hash.Put("foo4", stream, stream.Length);
+            stream = GetStream("bar1x");
+            _hash.Put("foo1", stream, stream.Length);
+            Assert.AreNotEqual(_hash.ActiveSize, _hash.TotalSize);
+            _hash.Merge();
+            Assert.AreEqual(_hash.ActiveSize, _hash.TotalSize);
+        }
+
+        [Test]
+        public void After_merge_active_does_not_change_for_add_delete() {
+            _hash = new FirkinHash<string>(_path, 60);
+            var stream = GetStream("bar1");
+            _hash.Put("foo1", stream, stream.Length);
+            stream = GetStream("bar2");
+            _hash.Put("foo2", stream, stream.Length);
+            stream = GetStream("bar3");
+            _hash.Put("foo3", stream, stream.Length);
+            stream = GetStream("bar4");
+            _hash.Put("foo4", stream, stream.Length);
+            stream = GetStream("bar1x");
+            _hash.Delete("foo1");
+            var active = _hash.ActiveSize;
+            _hash.Merge();
+            Assert.AreEqual(active, _hash.ActiveSize);
+        }
+
+        [Test]
+        public void After_merge_active_does_not_change_for_add_replace() {
+            _hash = new FirkinHash<string>(_path, 60);
+            var stream = GetStream("bar1");
+            _hash.Put("foo1", stream, stream.Length);
+            stream = GetStream("bar2");
+            _hash.Put("foo2", stream, stream.Length);
+            stream = GetStream("bar3");
+            _hash.Put("foo3", stream, stream.Length);
+            stream = GetStream("bar4");
+            _hash.Put("foo4", stream, stream.Length);
+            stream = GetStream("bar1x");
+            _hash.Put("foo1", stream, stream.Length);
+            var active = _hash.ActiveSize;
+            _hash.Merge();
+            Assert.AreEqual(active, _hash.ActiveSize);
+        }
+
+        [Test]
+        public void Add_delete_hash_active_and_total_do_not_change_with_reload() {
+            _hash = new FirkinHash<string>(_path, 60);
+            var stream = GetStream("bar1");
+            _hash.Put("foo1", stream, stream.Length);
+            stream = GetStream("bar2");
+            _hash.Put("foo2", stream, stream.Length);
+            stream = GetStream("bar3");
+            _hash.Put("foo3", stream, stream.Length);
+            stream = GetStream("bar4");
+            _hash.Delete("foo1");
+            _hash.Put("foo4", stream, stream.Length);
+            var total = _hash.TotalSize;
+            var active = _hash.ActiveSize;
+            _hash.Dispose();
+            _hash = new FirkinHash<string>(_path, 60);
+            Assert.AreEqual(total, _hash.TotalSize);
+            Assert.AreEqual(active, _hash.ActiveSize);
+        }
+
+        [Test]
+        public void Add_replace_hash_active_and_total_do_not_change_with_reload() {
+            _hash = new FirkinHash<string>(_path, 60);
+            var stream = GetStream("bar1");
+            _hash.Put("foo1", stream, stream.Length);
+            stream = GetStream("bar2");
+            _hash.Put("foo2", stream, stream.Length);
+            stream = GetStream("bar3");
+            _hash.Put("foo3", stream, stream.Length);
+            stream = GetStream("bar4");
+            _hash.Put("foo4", stream, stream.Length);
+            stream = GetStream("bar1x");
+            _hash.Put("foo1", stream, stream.Length);
+            var total = _hash.TotalSize;
+            var active = _hash.ActiveSize;
+            _hash.Dispose();
+            _hash = new FirkinHash<string>(_path, 60);
+            Assert.AreEqual(total, _hash.TotalSize);
+            Assert.AreEqual(active, _hash.ActiveSize);
+        }
+
+        [Test]
+        public void After_merge_and_reload_active_and_total_are_same_for_merged_chunks_with_delete() {
+            _hash = new FirkinHash<string>(_path, 60);
+            var stream = GetStream("bar1");
+            _hash.Put("foo1", stream, stream.Length);
+            stream = GetStream("bar2");
+            _hash.Put("foo2", stream, stream.Length);
+            stream = GetStream("bar3");
+            _hash.Put("foo3", stream, stream.Length);
+            stream = GetStream("bar4");
+            _hash.Delete("foo1");
+            _hash.Put("foo4", stream, stream.Length);
+            Assert.AreNotEqual(_hash.ActiveSize, _hash.TotalSize);
+            _hash.Merge();
+            _hash.Dispose();
+            _hash = new FirkinHash<string>(_path, 60);
+            Assert.AreEqual(_hash.ActiveSize, _hash.TotalSize);
+        }
+
+        [Test]
+        public void After_merge_and_reload_active_and_total_are_same_for_merged_chunks_with_replace() {
+            _hash = new FirkinHash<string>(_path, 60);
+            var stream = GetStream("bar1");
+            _hash.Put("foo1", stream, stream.Length);
+            stream = GetStream("bar2");
+            _hash.Put("foo2", stream, stream.Length);
+            stream = GetStream("bar3");
+            _hash.Put("foo3", stream, stream.Length);
+            stream = GetStream("bar4");
+            _hash.Put("foo4", stream, stream.Length);
+            stream = GetStream("bar1x");
+            _hash.Put("foo1", stream, stream.Length);
+            Assert.AreNotEqual(_hash.ActiveSize, _hash.TotalSize);
+            _hash.Merge();
+            _hash.Dispose();
+            _hash = new FirkinHash<string>(_path, 60);
+            Assert.AreEqual(_hash.ActiveSize, _hash.TotalSize);
+        }
+        
         private byte[] GetRandomBytes(Random r) {
             var bytes = new byte[r.Next(50) + 50];
             for(var i = 0; i < bytes.Length; i++) {
