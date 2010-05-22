@@ -29,6 +29,7 @@ using log4net;
 namespace Droog.Firkin {
     public class FirkinHash<TKey> : IFirkinHash<TKey> {
 
+
         //--- Constants ---
         public const long DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
         private const string STORAGE_FILE_PREFIX = "store_";
@@ -36,25 +37,28 @@ namespace Droog.Firkin {
         private const string OLD_FILE_PREFIX = "old_";
         private const string DATA_FILE_EXTENSION = ".data";
         private const string HINT_FILE_EXTENSION = ".hint";
+
         //--- Types ---
         private class MergePair {
             public IFirkinActiveFile Data;
             public IFirkinHintFile Hint;
         }
-
+        
         //--- Class Fields ---
-        private static readonly ILog _log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        protected static readonly ILog _log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         //--- Fields ---
         private readonly long _maxFileSize;
         private readonly string _storeDirectory;
         private readonly IByteArraySerializer<TKey> _serializer;
-        private readonly object _mergeSyncRoot = new object();
-        private readonly object _indexSyncRoot = new object();
+        protected readonly object _mergeSyncRoot = new object();
+        protected readonly object _indexSyncRoot = new object();
 
         private Dictionary<TKey, KeyInfo> _index = new Dictionary<TKey, KeyInfo>();
         private Dictionary<ushort, IFirkinFile> _files = new Dictionary<ushort, IFirkinFile>();
         private IFirkinActiveFile _head;
+        protected bool _isDisposed;
+        protected Action<FirkinHashChange<TKey>> _changeObserver;
 
         //--- Constructors ---
         public FirkinHash(string storeDirectory) : this(storeDirectory, DEFAULT_MAX_FILE_SIZE) { }
@@ -87,14 +91,21 @@ namespace Droog.Firkin {
                 Delete(key);
                 return;
             }
+            var action = ObservedAction.Add;
             lock(_indexSyncRoot) {
                 var keyInfo = _head.Write(new KeyValuePair() {
                     Key = _serializer.Serialize(key),
                     Value = stream,
                     ValueSize = length
                 });
+                if(_changeObserver != null) {
+                    action = _index.ContainsKey(key) ? ObservedAction.Change : ObservedAction.Add;
+                }
                 _index[key] = keyInfo;
                 CheckHead();
+            }
+            if(_changeObserver != null) {
+                _changeObserver(new FirkinHashChange<TKey>(key, action));
             }
         }
 
@@ -276,6 +287,9 @@ namespace Droog.Firkin {
                 info.ValueSize = 0;
                 CheckHead();
             }
+            if(_changeObserver != null) {
+                _changeObserver(new FirkinHashChange<TKey>(key, ObservedAction.Delete));
+            }
             return true;
         }
 
@@ -333,8 +347,21 @@ namespace Droog.Firkin {
         }
 
         public void Dispose() {
+            if(_isDisposed) {
+                return;
+            }
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool disposing) {
             foreach(var file in _files.Values) {
                 file.Dispose();
+            }
+        }
+
+        protected void CheckDisposed() {
+            if(_isDisposed) {
+                throw new ObjectDisposedException(this.GetType().ToString());
             }
         }
 
@@ -452,5 +479,20 @@ namespace Droog.Firkin {
         IEnumerator IEnumerable.GetEnumerator() {
             return GetEnumerator();
         }
+    }
+
+    public struct FirkinHashChange<TKey> {
+        public readonly TKey Key;
+        public readonly ObservedAction Action;
+        public FirkinHashChange(TKey key, ObservedAction action) {
+            Key = key;
+            Action = action;
+        }
+    }
+
+    public enum ObservedAction {
+        Add,
+        Change,
+        Delete
     }
 }
