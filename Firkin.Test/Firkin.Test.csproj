@@ -57,6 +57,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FirkinTestEx.cs" />
     <Compile Include="TFirkinDictionary.cs" />
     <Compile Include="TFirkinHash.cs" />
     <Compile Include="TFirkinFile.cs" />

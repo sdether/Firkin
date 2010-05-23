@@ -29,7 +29,6 @@ using log4net;
 namespace Droog.Firkin {
     public class FirkinHash<TKey> : IFirkinHash<TKey> {
 
-
         //--- Constants ---
         public const long DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
         private const string STORAGE_FILE_PREFIX = "store_";
@@ -86,6 +85,10 @@ namespace Droog.Firkin {
         public IEnumerable<TKey> Keys { get { lock(_indexSyncRoot) { return _index.Keys.ToArray(); } } }
 
         //--- Methods ---
+        public void Put(TKey key, Stream stream) {
+            Put(key, stream, stream.Length);
+        }
+
         public void Put(TKey key, Stream stream, uint length) {
             if(length == 0) {
                 Delete(key);

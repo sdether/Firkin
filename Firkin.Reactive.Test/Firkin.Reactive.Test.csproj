@@ -5,11 +5,11 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>9.0.30729</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{F348CB92-3279-49ED-B775-E316AB6EDBE9}</ProjectGuid>
+    <ProjectGuid>{25D73813-1735-41CD-9E19-DCC6E652D9CA}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Firkin.Reactive</RootNamespace>
-    <AssemblyName>Firkin.Reactive</AssemblyName>
+    <RootNamespace>Firkin.Reactive.Test</RootNamespace>
+    <AssemblyName>Firkin.Reactive.Test</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -31,11 +31,21 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="log4net, Version=1.2.10.0, Culture=neutral, PublicKeyToken=1b44e1d426115821, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\redist\log4net.dll</HintPath>
+    </Reference>
+    <Reference Include="nunit.framework, Version=2.4.8.0, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\redist\nunit.framework.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
+    <Reference Include="System.CoreEx, Version=1.0.2521.102, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
     <Reference Include="System.Observable, Version=1.0.0.102, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
+    <Reference Include="System.Reactive, Version=1.0.2521.102, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
     <Reference Include="System.Xml.Linq">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
@@ -46,11 +56,18 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="IObservableFirkinHash.cs" />
-    <Compile Include="ObservableFirkinHash.cs" />
+    <Compile Include="TIObservableFirkinHash.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Firkin.Reactive\Firkin.Reactive.csproj">
+      <Project>{F348CB92-3279-49ED-B775-E316AB6EDBE9}</Project>
+      <Name>Firkin.Reactive</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Firkin.Test\Firkin.Test.csproj">
+      <Project>{9F4A0096-AF17-440F-85A1-9FAD16C05D36}</Project>
+      <Name>Firkin.Test</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Firkin\Firkin.csproj">
       <Project>{F5F73918-C281-4A75-93E6-C2D2D148D18A}</Project>
       <Name>Firkin</Name>

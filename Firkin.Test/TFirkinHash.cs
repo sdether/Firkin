@@ -53,10 +53,10 @@ namespace Droog.Firkin.Test {
             CreateHash();
             var key = "foo";
             var value = "bar";
-            var stream = GetStream(value);
+            var stream = value.ToStream();
             _hash.Put(key, stream, stream.Length);
             var stream2 = _hash.Get(key);
-            Assert.AreEqual(value, GetValue<string>(stream2));
+            Assert.AreEqual(value, stream2.To<string>());
         }
 
         [Test]
@@ -64,13 +64,13 @@ namespace Droog.Firkin.Test {
             CreateHash();
             var key = "foo";
             var value = "bar";
-            var stream = GetStream(value);
+            var stream = value.ToStream();
             _hash.Put(key, stream, stream.Length);
             _hash.Dispose();
             _log.DebugFormat("re-loading hash");
             CreateHash();
             var stream2 = _hash.Get(key);
-            Assert.AreEqual(value, GetValue<string>(stream2));
+            Assert.AreEqual(value, stream2.To<string>());
         }
 
         [Test]
@@ -78,7 +78,7 @@ namespace Droog.Firkin.Test {
             CreateHash();
             var data = Enumerable.Range(1, 5);
             foreach(var v in data) {
-                var stream = GetStream(v);
+                var stream = v.ToStream();
                 _hash.Put("k" + v, stream, stream.Length);
             }
             _hash.Dispose();
@@ -86,7 +86,7 @@ namespace Droog.Firkin.Test {
             CreateHash();
             foreach(var v in data) {
                 var stream2 = _hash.Get("k" + v);
-                Assert.AreEqual(v, GetValue<int>(stream2));
+                Assert.AreEqual(v, stream2.To<int>());
             }
         }
 
@@ -95,7 +95,7 @@ namespace Droog.Firkin.Test {
             CreateHash();
             var key = "foo";
             var value = "bar";
-            var stream = GetStream(value);
+            var stream = value.ToStream();
             _hash.Put(key, stream, stream.Length);
             _hash.Delete(key);
             Assert.IsNull(_hash.Get(key));
@@ -106,7 +106,7 @@ namespace Droog.Firkin.Test {
             CreateHash();
             var key = "foo";
             var value = "bar";
-            var stream = GetStream(value);
+            var stream = value.ToStream();
             _hash.Put(key, stream, stream.Length);
             _hash.Delete(key);
             _hash.Dispose();
@@ -121,12 +121,12 @@ namespace Droog.Firkin.Test {
             var key = "foo";
             var value = "bar";
             var value2 = "baz";
-            var stream = GetStream(value);
+            var stream = value.ToStream();
             _hash.Put(key, stream, stream.Length);
-            stream = GetStream(value2);
+            stream = value2.ToStream();
             _hash.Put(key, stream, stream.Length);
             var stream2 = _hash.Get(key);
-            Assert.AreEqual(value2, GetValue<string>(stream2));
+            Assert.AreEqual(value2, stream2.To<string>());
         }
 
         [Test]
@@ -135,15 +135,15 @@ namespace Droog.Firkin.Test {
             var key = "foo";
             var value = "bar";
             var value2 = "baz";
-            var stream = GetStream(value);
+            var stream = value.ToStream();
             _hash.Put(key, stream, stream.Length);
-            stream = GetStream(value2);
+            stream = value2.ToStream();
             _hash.Put(key, stream, stream.Length);
             _hash.Dispose();
             _log.DebugFormat("re-loading hash");
             CreateHash();
             var stream2 = _hash.Get(key);
-            Assert.AreEqual(value2, GetValue<string>(stream2));
+            Assert.AreEqual(value2, stream2.To<string>());
         }
 
         [Test]
@@ -152,13 +152,13 @@ namespace Droog.Firkin.Test {
             var key = "foo";
             var value = "bar";
             var value2 = "baz";
-            var stream = GetStream(value);
+            var stream = value.ToStream();
             _hash.Put(key, stream, stream.Length);
             _hash.Delete(key);
-            stream = GetStream(value2);
+            stream = value2.ToStream();
             _hash.Put(key, stream, stream.Length);
             var stream2 = _hash.Get(key);
-            Assert.AreEqual(value2, GetValue<string>(stream2));
+            Assert.AreEqual(value2, stream2.To<string>());
         }
 
         [Test]
@@ -167,22 +167,22 @@ namespace Droog.Firkin.Test {
             var key = "foo";
             var value = "bar";
             var value2 = "baz";
-            var stream = GetStream(value);
+            var stream = value.ToStream();
             _hash.Put(key, stream, stream.Length);
             _hash.Delete(key);
             _hash.Dispose();
             _log.DebugFormat("re-loading hash");
             CreateHash();
-            stream = GetStream(value2);
+            stream = value2.ToStream();
             _hash.Put(key, stream, stream.Length);
             var stream2 = _hash.Get(key);
-            Assert.AreEqual(value2, GetValue<string>(stream2));
+            Assert.AreEqual(value2, stream2.To<string>());
         }
 
         [Test]
         public void Active_rolls_over_at_size_barrier() {
             _hash = new FirkinHash<string>(_path, 30);
-            var stream = GetStream("bar");
+            var stream = "bar".ToStream();
             _hash.Put("foo1", stream, stream.Length);
             stream.Position = 0;
             _hash.Put("foo2", stream, stream.Length);
@@ -195,61 +195,61 @@ namespace Droog.Firkin.Test {
         [Test]
         public void Can_access_keys_across_files_after_hash_reload() {
             _hash = new FirkinHash<string>(_path, 30);
-            var stream = GetStream("bar1");
+            var stream = "bar1".ToStream();
             _hash.Put("foo1", stream, stream.Length);
-            stream = GetStream("bar2");
+            stream = "bar2".ToStream();
             _hash.Put("foo2", stream, stream.Length);
-            stream = GetStream("bar3");
+            stream = "bar3".ToStream();
             _hash.Put("foo3", stream, stream.Length);
             _hash.Dispose();
             _hash = new FirkinHash<string>(_path, 30);
-            Assert.AreEqual("bar3", GetValue<string>(_hash.Get("foo3")));
-            Assert.AreEqual("bar1", GetValue<string>(_hash.Get("foo1")));
-            Assert.AreEqual("bar2", GetValue<string>(_hash.Get("foo2")));
+            Assert.AreEqual("bar3", _hash.Get("foo3").To<string>());
+            Assert.AreEqual("bar1", _hash.Get("foo1").To<string>());
+            Assert.AreEqual("bar2", _hash.Get("foo2").To<string>());
         }
 
         [Test]
         public void Can_call_merge_and_retrieve_data() {
             _hash = new FirkinHash<string>(_path, 60);
-            var stream = GetStream("bar1");
+            var stream = "bar1".ToStream();
             _hash.Put("foo1", stream, stream.Length);
-            stream = GetStream("bar2");
+            stream = "bar2".ToStream();
             _hash.Put("foo2", stream, stream.Length);
-            stream = GetStream("bar3");
+            stream = "bar3".ToStream();
             _hash.Put("foo3", stream, stream.Length);
-            stream = GetStream("bar4");
+            stream = "bar4".ToStream();
             _hash.Put("foo4", stream, stream.Length);
-            stream = GetStream("bar1x");
+            stream = "bar1x".ToStream();
             _hash.Put("foo1", stream, stream.Length);
             _hash.Merge();
             Assert.AreEqual(4, _hash.Count);
-            Assert.AreEqual("bar3", GetValue<string>(_hash.Get("foo3")));
-            Assert.AreEqual("bar1x", GetValue<string>(_hash.Get("foo1")));
-            Assert.AreEqual("bar2", GetValue<string>(_hash.Get("foo2")));
-            Assert.AreEqual("bar4", GetValue<string>(_hash.Get("foo4")));
+            Assert.AreEqual("bar3", _hash.Get("foo3").To<string>());
+            Assert.AreEqual("bar1x", _hash.Get("foo1").To<string>());
+            Assert.AreEqual("bar2", _hash.Get("foo2").To<string>());
+            Assert.AreEqual("bar4", _hash.Get("foo4").To<string>());
         }
 
         [Test]
         public void Can_call_merge_and_reload_hash_then_retrieve_data() {
             _hash = new FirkinHash<string>(_path, 30);
-            var stream = GetStream("bar1");
+            var stream = "bar1".ToStream();
             _hash.Put("foo1", stream, stream.Length);
-            stream = GetStream("bar2");
+            stream = "bar2".ToStream();
             _hash.Put("foo2", stream, stream.Length);
-            stream = GetStream("bar3");
+            stream = "bar3".ToStream();
             _hash.Put("foo3", stream, stream.Length);
-            stream = GetStream("bar4");
+            stream = "bar4".ToStream();
             _hash.Put("foo4", stream, stream.Length);
-            stream = GetStream("bar1x");
+            stream = "bar1x".ToStream();
             _hash.Put("foo1", stream, stream.Length);
             _hash.Merge();
             _hash.Dispose();
             _log.DebugFormat("re-loading hash");
             _hash = new FirkinHash<string>(_path, 30);
-            Assert.AreEqual("bar3", GetValue<string>(_hash.Get("foo3")));
-            Assert.AreEqual("bar1x", GetValue<string>(_hash.Get("foo1")));
-            Assert.AreEqual("bar2", GetValue<string>(_hash.Get("foo2")));
-            Assert.AreEqual("bar4", GetValue<string>(_hash.Get("foo4")));
+            Assert.AreEqual("bar3", _hash.Get("foo3").To<string>());
+            Assert.AreEqual("bar1x", _hash.Get("foo1").To<string>());
+            Assert.AreEqual("bar2", _hash.Get("foo2").To<string>());
+            Assert.AreEqual("bar4", _hash.Get("foo4").To<string>());
         }
 
         [Test]
@@ -271,9 +271,9 @@ namespace Droog.Firkin.Test {
                     dictionary.Remove(k);
                     _hash.Delete(k);
                 } else {
-                    var v = GetRandomBytes(r);
+                    var v = TestUtil.GetRandomBytes(r);
                     dictionary[k] = v;
-                    _hash.Put(k, GetStream(v), v.Length);
+                    _hash.Put(k, v.ToStream(), v.Length);
                 }
                 _hash.Get("k" + r.Next(100));
             }
@@ -294,9 +294,9 @@ namespace Droog.Firkin.Test {
                     dictionary.Remove(k);
                     _hash.Delete(k);
                 } else {
-                    var v = GetRandomBytes(r);
+                    var v = TestUtil.GetRandomBytes(r);
                     dictionary[k] = v;
-                    _hash.Put(k, GetStream(v), v.Length);
+                    _hash.Put(k, v.ToStream(), v.Length);
                 }
                 _hash.Get("k" + r.Next(100));
             }
@@ -320,9 +320,9 @@ namespace Droog.Firkin.Test {
                     dictionary.Remove(k);
                     _hash.Delete(k);
                 } else {
-                    var v = GetRandomBytes(r);
+                    var v = TestUtil.GetRandomBytes(r);
                     dictionary[k] = v;
-                    _hash.Put(k, GetStream(v), v.Length);
+                    _hash.Put(k, v.ToStream(), v.Length);
                 }
                 _hash.Get("k" + r.Next(100));
             }
@@ -344,9 +344,9 @@ namespace Droog.Firkin.Test {
                     dictionary.Remove(k);
                     _hash.Delete(k);
                 } else {
-                    var v = GetRandomBytes(r);
+                    var v = TestUtil.GetRandomBytes(r);
                     dictionary[k] = v;
-                    _hash.Put(k, GetStream(v), v.Length);
+                    _hash.Put(k, v.ToStream(), v.Length);
                 }
                 _hash.Get("k" + r.Next(100));
             }
@@ -357,9 +357,9 @@ namespace Droog.Firkin.Test {
                     dictionary.Remove(k);
                     _hash.Delete(k);
                 } else {
-                    var v = GetRandomBytes(r);
+                    var v = TestUtil.GetRandomBytes(r);
                     dictionary[k] = v;
-                    _hash.Put(k, GetStream(v), v.Length);
+                    _hash.Put(k, v.ToStream(), v.Length);
                 }
                 _hash.Get("k" + r.Next(100));
             }
@@ -375,8 +375,8 @@ namespace Droog.Firkin.Test {
             CreateHash();
             for(var i = 0; i < 1000; i++) {
                 var k = "k" + i;
-                var v = GetRandomBytes(r);
-                _hash.Put(k, GetStream(v), v.Length);
+                var v = TestUtil.GetRandomBytes(r);
+                _hash.Put(k, v.ToStream(), v.Length);
             }
             Assert.AreEqual(1000, _hash.Count);
             _hash.Truncate();
@@ -389,8 +389,8 @@ namespace Droog.Firkin.Test {
             CreateHash();
             for(var i = 0; i < 1000; i++) {
                 var k = "k" + i;
-                var v = GetRandomBytes(r);
-                _hash.Put(k, GetStream(v), v.Length);
+                var v = TestUtil.GetRandomBytes(r);
+                _hash.Put(k, v.ToStream(), v.Length);
             }
             Assert.AreEqual(1000, _hash.Count);
             _hash.Truncate();
@@ -398,49 +398,5 @@ namespace Droog.Firkin.Test {
             CreateHash();
             Assert.AreEqual(0, _hash.Count);
         }
-
-        private byte[] GetRandomBytes(Random r) {
-            var bytes = new byte[r.Next(50) + 50];
-            for(var i = 0; i < bytes.Length; i++) {
-                bytes[i] = (byte)(r.Next(30) + 10);
-            }
-            return bytes;
-        }
-
-        private Stream GetStream(byte[] bytes) {
-            var stream = new MemoryStream();
-            stream.Write(bytes, 0, bytes.Length);
-            stream.Position = 0;
-            return stream;
-        }
-
-        private Stream GetStream(int value) {
-            var stream = new MemoryStream();
-            var bytes = BitConverter.GetBytes(value);
-            stream.Write(bytes, 0, bytes.Length);
-            stream.Position = 0;
-            return stream;
-        }
-
-        private Stream GetStream(string value) {
-            var stream = new MemoryStream();
-            var writer = new StreamWriter(stream);
-            writer.Write(value);
-            writer.Flush();
-            stream.Position = 0;
-            return stream;
-        }
-
-        private T GetValue<T>(Stream stream) {
-            if(typeof(T) == typeof(int)) {
-                var bytes = new Byte[4];
-                stream.Read(bytes, 0, 4);
-                return (T)(object)BitConverter.ToInt32(bytes, 0);
-            } else {
-                var reader = new StreamReader(stream);
-                return (T)(object)reader.ReadToEnd();
-            }
-        }
-
     }
 }

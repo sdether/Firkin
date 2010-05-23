@@ -18,12 +18,25 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using Droog.Firkin;
 using Droog.Firkin.Serialization;
 
 namespace Firkin.Reactive {
     public class ObservableFirkinHash<TKey> : FirkinHash<TKey>, IObservableFirkinHash<TKey> {
+
+        //--- Types ---
+        private class DisposableClosure : IDisposable {
+            private readonly Action _dispose;
+
+            public DisposableClosure(Action dispose) {
+                _dispose = dispose;
+            }
+
+            public void Dispose() {
+                _dispose();
+            }
+        }
+
 
         //--- Fields ---
         private readonly Dictionary<int, IObserver<FirkinHashChange<TKey>>> _subscribers = new Dictionary<int, IObserver<FirkinHashChange<TKey>>>();
@@ -96,19 +109,4 @@ namespace Firkin.Reactive {
             }
         }
     }
-
-    public interface IObservableFirkinHash<TKey> : IObservable<FirkinHashChange<TKey>>, IFirkinHash<TKey> { }
-
-    class DisposableClosure : IDisposable {
-        Action dispose;
-        public DisposableClosure(Action dispose) {
-            this.dispose = dispose;
-        }
-
-        public void Dispose() {
-            dispose();
-        }
-    }
-
-
 }
