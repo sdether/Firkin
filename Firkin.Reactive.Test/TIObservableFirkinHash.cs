@@ -58,7 +58,7 @@ namespace Firkin.Reactive.Test {
             observable.Put("bar", 2.ToStream());
             observable.Put("baz", 3.ToStream());
             Assert.AreEqual(new[] { "foo", "bar", "baz" }, changes.Select(x => x.Key).ToArray());
-            Assert.AreEqual(new[] { ObservedAction.Add, ObservedAction.Add, ObservedAction.Add }, changes.Select(x => x.Action).ToArray());
+            Assert.AreEqual(new[] { FirkinHashChangeAction.Add, FirkinHashChangeAction.Add, FirkinHashChangeAction.Add }, changes.Select(x => x.Action).ToArray());
         }
 
         [Test]
@@ -70,7 +70,7 @@ namespace Firkin.Reactive.Test {
             observable.Put("foo", 2.ToStream());
             observable.Delete("foo");
             Assert.AreEqual(new[] { "foo", "foo", "foo" }, changes.Select(x => x.Key).ToArray());
-            Assert.AreEqual(new[] { ObservedAction.Add, ObservedAction.Change, ObservedAction.Delete }, changes.Select(x => x.Action).ToArray());
+            Assert.AreEqual(new[] { FirkinHashChangeAction.Add, FirkinHashChangeAction.Change, FirkinHashChangeAction.Delete }, changes.Select(x => x.Action).ToArray());
         }
 
         [Test]

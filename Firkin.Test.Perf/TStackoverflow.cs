@@ -24,6 +24,7 @@ using System.Xml;
 using System.Xml.Serialization;
 using Droog.Firkin.Test.Perf.Stackoverflow;
 using Droog.Firkin.Util;
+using Firkin.Reactive;
 using log4net;
 using NUnit.Framework;
 using ProtoBuf;
@@ -70,6 +71,30 @@ namespace Droog.Firkin.Test.Perf {
             }
 
         }
+
+        [Test]
+        public void Write_users_with_observable_Firkin() {
+            var users = GetDataSource<User>().ToDictionary(k => k.Id, v => GetEntityStream(v));
+            if(!users.Any()) {
+                return;
+            }
+            var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+            var hash = new ObservableFirkinHash<int>(path);
+            var observer = Observer.Create<FirkinHashChange<int>>(x => { });
+            hash.Subscribe(observer);
+            try {
+                var elapsed = Diagnostics.Time(() => {
+                    foreach(var user in users) {
+                        hash.Put(user.Key, user.Value, user.Value.Length);
+                    }
+                });
+                Console.WriteLine("Wrote {0} users to firkin @ {1:0,0} users/second)", users.Count, users.Count / elapsed.TotalSeconds);
+            } finally {
+                hash.Dispose();
+                Directory.Delete(path, true);
+            }
+        }
+
         [Test]
         public void Iterate_over_users_with_Firkin() {
             var users = GetDataSource<User>().ToDictionary(k => k.Id, v => GetEntityStream(v));

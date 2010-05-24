@@ -48,6 +48,9 @@
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
+    <Reference Include="System.CoreEx, Version=1.0.2521.102, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
+    <Reference Include="System.Observable, Version=1.0.0.102, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
+    <Reference Include="System.Reactive, Version=1.0.2521.102, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
     <Reference Include="System.Xml.Linq">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
@@ -63,11 +66,16 @@
     <Compile Include="Stackoverflow\Post.cs" />
     <Compile Include="Stackoverflow\User.cs" />
     <Compile Include="Stackoverflow\Votes.cs" />
+    <Compile Include="TAsync.cs" />
     <Compile Include="TStackoverflow.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Stackoverflow\Badge.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Firkin.Reactive\Firkin.Reactive.csproj">
+      <Project>{F348CB92-3279-49ED-B775-E316AB6EDBE9}</Project>
+      <Name>Firkin.Reactive</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Firkin\Firkin.csproj">
       <Project>{F5F73918-C281-4A75-93E6-C2D2D148D18A}</Project>
       <Name>Firkin</Name>

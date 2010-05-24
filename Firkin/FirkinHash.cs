@@ -94,7 +94,7 @@ namespace Droog.Firkin {
                 Delete(key);
                 return;
             }
-            var action = ObservedAction.Add;
+            var action = FirkinHashChangeAction.Add;
             lock(_indexSyncRoot) {
                 var keyInfo = _head.Write(new KeyValuePair() {
                     Key = _serializer.Serialize(key),
@@ -102,7 +102,7 @@ namespace Droog.Firkin {
                     ValueSize = length
                 });
                 if(_changeObserver != null) {
-                    action = _index.ContainsKey(key) ? ObservedAction.Change : ObservedAction.Add;
+                    action = _index.ContainsKey(key) ? FirkinHashChangeAction.Change : FirkinHashChangeAction.Add;
                 }
                 _index[key] = keyInfo;
                 CheckHead();
@@ -291,7 +291,7 @@ namespace Droog.Firkin {
                 CheckHead();
             }
             if(_changeObserver != null) {
-                _changeObserver(new FirkinHashChange<TKey>(key, ObservedAction.Delete));
+                _changeObserver(new FirkinHashChange<TKey>(key, FirkinHashChangeAction.Delete));
             }
             return true;
         }
@@ -482,20 +482,5 @@ namespace Droog.Firkin {
         IEnumerator IEnumerable.GetEnumerator() {
             return GetEnumerator();
         }
-    }
-
-    public struct FirkinHashChange<TKey> {
-        public readonly TKey Key;
-        public readonly ObservedAction Action;
-        public FirkinHashChange(TKey key, ObservedAction action) {
-            Key = key;
-            Action = action;
-        }
-    }
-
-    public enum ObservedAction {
-        Add,
-        Change,
-        Delete
     }
 }

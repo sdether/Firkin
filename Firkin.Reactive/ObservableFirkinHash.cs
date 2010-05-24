@@ -87,9 +87,11 @@ namespace Firkin.Reactive {
 
         private void OnNext(FirkinHashChange<TKey> value) {
             CheckDisposed();
-            foreach(IObserver<FirkinHashChange<TKey>> observer in _subscribers.Select(kv => kv.Value)) {
-                observer.OnNext(value);
-            }
+            Observable.Start(() => {
+                foreach (IObserver<FirkinHashChange<TKey>> observer in _subscribers.Select(kv => kv.Value)) {
+                    observer.OnNext(value);
+                }
+            });
         }
 
         private void OnError(Exception exception) {
