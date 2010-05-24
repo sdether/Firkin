@@ -1,6 +1,6 @@
-Firkin 0.1
+Firkin 0.2
 ==========
-An embeddable Key/Value store for .NET and mono using immutable log journalling and in-memory hashing as its storage back end. Inspired by the Basho BitCask paper located at http://downloads.basho.com/papers/bitcask-intro.pdf
+An embeddable Key/Value store for .NET and mono using immutable log journalling and in-memory hashing as its storage back end. Inspired by the Basho BitCask paper located at http://downloads.basho.com/papers/bitcask-intro.pdf. Supports IObservable interface from the Rx framework with Firkin.Reactive, allowing changes to be tailed.
 
 Uses
 ====
@@ -9,6 +9,10 @@ Uses
 Installation
 ============
 Currently using the driver in the GAC is not supported.  Simply copy the driver assembly somewhere and reference it in your project.  It should be deployed in your application's bin directory.  It is not necessary to reference the test assemblies.
+
+Dependencies
+============
+Firkin.Reactive, Firkin.Reactive.Test and Firkin.Test.Perf require the Rx Framework to be installed (http://msdn.microsoft.com/en-us/devlabs/ee794896.aspx). Firkin itself does not require Rx.
 
 Patches
 =======
@@ -65,6 +69,8 @@ The write/random query test of all users from the StackOverflow dump included in
   41k writes/second
   
   80k queries/second
+  
+Using ObservableFirkinHash currently adds a ~20% perf penalty for writes, since it checks the index to determine whether the action is a add or change.
 
 
 Contributors
