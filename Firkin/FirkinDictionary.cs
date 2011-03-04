@@ -41,9 +41,7 @@ namespace Droog.Firkin {
         }
 
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator() {
-            foreach(var pair in _hash) {
-                yield return new KeyValuePair<TKey, TValue>(pair.Key, _valueSerializer.Deserialize(pair.Value));
-            }
+            return _hash.Select(pair => new KeyValuePair<TKey, TValue>(pair.Key, _valueSerializer.Deserialize(pair.Value))).GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator() {

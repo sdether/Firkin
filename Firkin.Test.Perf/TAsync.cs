@@ -12,7 +12,7 @@ namespace Droog.Firkin.Test.Perf {
 
         [Test]
         public void Fire_off_lots_of_little_tasks() {
-            var n = 10000;
+            var n = 1000000;
             var mres = new List<ManualResetEvent>();
             for(var i = 0; i < n; i++) {
                 mres.Add(new ManualResetEvent(false));

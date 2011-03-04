@@ -39,8 +39,7 @@ namespace Firkin.Reactive {
 
 
         //--- Fields ---
-        private readonly Dictionary<int, IObserver<FirkinHashChange<TKey>>> _subscribers = new Dictionary<int, IObserver<FirkinHashChange<TKey>>>();
-        private int _subscriberKey;
+        private Subject<FirkinHashChange<TKey>> _observable = new Subject<FirkinHashChange<TKey>>();
 
         //--- Constructors ---
         public ObservableFirkinHash(string storeDirectory)
@@ -63,15 +62,7 @@ namespace Firkin.Reactive {
             if(observer == null) {
                 throw new ArgumentNullException("observer");
             }
-            lock(_indexSyncRoot) {
-                int k = _subscriberKey++;
-                _subscribers[k] = observer;
-                return new DisposableClosure(() => {
-                    lock(_indexSyncRoot) {
-                        _subscribers.Remove(k);
-                    }
-                });
-            }
+            return _observable.Subscribe(observer);
         }
 
         protected override void Dispose(bool disposing) {
@@ -87,28 +78,14 @@ namespace Firkin.Reactive {
 
         private void OnNext(FirkinHashChange<TKey> value) {
             CheckDisposed();
-            Observable.Start(() => {
-                foreach (IObserver<FirkinHashChange<TKey>> observer in _subscribers.Select(kv => kv.Value)) {
-                    observer.OnNext(value);
-                }
-            });
+            _observable.OnNext(value);
         }
 
-        private void OnError(Exception exception) {
-            CheckDisposed();
-            if(exception == null) {
-                throw new ArgumentNullException("exception");
-            }
-            foreach(var observer in _subscribers.Select(kv => kv.Value)) {
-                observer.OnError(exception);
-            }
-        }
+ 
 
         private void OnCompleted() {
             CheckDisposed();
-            foreach(var observer in _subscribers.Select(kv => kv.Value)) {
-                observer.OnCompleted();
-            }
+            _observable.OnCompleted();
         }
     }
 }
