@@ -133,6 +133,10 @@ namespace Droog.Firkin {
             get { return this.Select(x => x.Value).ToList(); }
         }
 
+        public void Merge() {
+            _hash.Merge();
+        }
+
         private MemoryStream GetStream(TValue value) {
             var stream = new MemoryStream();
             _valueSerializer.Serialize(stream, value);

@@ -18,28 +18,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reactive.Subjects;
 using Droog.Firkin;
 using Droog.Firkin.Serialization;
 
 namespace Firkin.Reactive {
     public class ObservableFirkinHash<TKey> : FirkinHash<TKey>, IObservableFirkinHash<TKey> {
 
-        //--- Types ---
-        private class DisposableClosure : IDisposable {
-            private readonly Action _dispose;
-
-            public DisposableClosure(Action dispose) {
-                _dispose = dispose;
-            }
-
-            public void Dispose() {
-                _dispose();
-            }
-        }
-
-
         //--- Fields ---
-        private Subject<FirkinHashChange<TKey>> _observable = new Subject<FirkinHashChange<TKey>>();
+        private readonly Subject<FirkinHashChange<TKey>> _observable = new Subject<FirkinHashChange<TKey>>();
 
         //--- Constructors ---
         public ObservableFirkinHash(string storeDirectory)
@@ -78,14 +65,16 @@ namespace Firkin.Reactive {
 
         private void OnNext(FirkinHashChange<TKey> value) {
             CheckDisposed();
-            _observable.OnNext(value);
+            lock(_observable) {
+                _observable.OnNext(value);
+            }
         }
-
- 
 
         private void OnCompleted() {
             CheckDisposed();
-            _observable.OnCompleted();
+            lock(_observable) {
+                _observable.OnCompleted();
+            }
         }
     }
 }

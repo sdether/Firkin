@@ -42,7 +42,7 @@ namespace Droog.Firkin {
             public IFirkinActiveFile Data;
             public IFirkinHintFile Hint;
         }
-        
+
         //--- Class Fields ---
         protected static readonly ILog _log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -230,8 +230,8 @@ namespace Droog.Firkin {
                             } else {
                                 newIndex[key] = pair.Value;
                             }
-                            _log.DebugFormat("added entries from file {0}: {1}", file.FileId, newIndex.Count);
                         }
+                        _log.DebugFormat("added entries from file {0}: {1}", file.FileId, newIndex.Count);
                     }
 
                     // swap out index and file list

@@ -20,6 +20,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Linq;
+using System.Reactive;
 using System.Xml;
 using System.Xml.Serialization;
 using Droog.Firkin.Test.Perf.Stackoverflow;
