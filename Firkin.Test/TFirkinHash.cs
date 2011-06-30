@@ -387,6 +387,42 @@ namespace Droog.Firkin.Test {
             }
         }
 
+
+        [Test]
+        public void Read_write_delete_consistency_with_multiple_merges() {
+            var r = new Random(1234);
+            _hash = new FirkinHash<string>(_path, 10 * 2048);
+            var dictionary = new Dictionary<string, byte[]>();
+            for(var j = 0; j < 10; j++) {
+                for(var i = 0; i < 1000; i++) {
+                    var k = "k" + r.Next(100);
+                    if(r.Next(4) == 3) {
+                        dictionary.Remove(k);
+                        _hash.Delete(k);
+                    } else {
+                        var v = TestUtil.GetRandomBytes(r);
+                        dictionary[k] = v;
+                        _hash.Put(k, v.ToStream(), v.Length);
+                    }
+                    _hash.Get("k" + r.Next(100));
+                }
+                var skip = true;
+                foreach(var k in _hash) {
+                    skip = !skip;
+                    if(skip) {
+                        continue;
+                    }
+                    dictionary.Remove(k.Key);
+                    _hash.Delete(k.Key);
+                }
+                _hash.Merge();
+            }
+            Assert.AreEqual(dictionary.Count, _hash.Count);
+            foreach(var pair in dictionary) {
+                Assert.AreEqual(0, pair.Value.Compare(_hash.Get(pair.Key).ReadBytes()));
+            }
+        }
+
         [Test]
         public void Can_truncate_hash() {
             var r = new Random(1234);
