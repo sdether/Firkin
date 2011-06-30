@@ -19,6 +19,7 @@ using System.IO;
 
 namespace Droog.Firkin.Data {
     public struct KeyValueRecord {
+        public static readonly KeyValueRecord Empty = new KeyValueRecord();
         public byte[] Hash;
         public uint Serial;
         public uint ValueSize;

@@ -143,34 +143,44 @@ namespace Droog.Firkin.IO {
                         // end of file
                         yield break;
                     }
-                    var keySize = BitConverter.ToUInt32(header, KEY_SIZE_OFFSET);
-                    var valueSize = BitConverter.ToUInt32(header, VALUE_SIZE_OFFSET);
-                    var key = _stream.ReadBytes(keySize);
-                    var value = new MemoryStream();
-                    _stream.CopyTo(value, valueSize);
-                    var recordHash = header.Select(0, HASH_SIZE);
-                    using(var hashable = new MemoryStream()) {
-                        value.Position = 0;
-                        hashable.Write(key);
-                        value.CopyTo(hashable, valueSize);
-                        hashable.Position = 0;
-                        var computedHash = hashable.ComputeHash();
-                        if(recordHash.Compare(computedHash) != 0) {
-
-                            // currently just skipping corrupt records
-                            continue;
-                        }
+                    KeyValueRecord record;
+                    var goodRecord = GetRecord(header, out record);
+                    if(goodRecord) {
+                        yield return record;
                     }
-                    value.Position = 0;
-                    yield return new KeyValueRecord() {
-                        Hash = recordHash,
-                        Serial = BitConverter.ToUInt32(header, SERIAL_OFFSET),
-                        ValueSize = valueSize,
-                        Key = key,
-                        Value = value
-                    };
                 }
             }
+        }
+
+        private bool GetRecord(byte[] header, out KeyValueRecord record) {
+            var keySize = BitConverter.ToUInt32(header, KEY_SIZE_OFFSET);
+            var valueSize = BitConverter.ToUInt32(header, VALUE_SIZE_OFFSET);
+            var key = _stream.ReadBytes(keySize);
+            var value = new MemoryStream();
+            _stream.CopyTo(value, valueSize);
+            var recordHash = header.Select(0, HASH_SIZE);
+            using(var hashable = new MemoryStream()) {
+                value.Position = 0;
+                hashable.Write(key);
+                value.CopyTo(hashable, valueSize);
+                hashable.Position = 0;
+                var computedHash = hashable.ComputeHash();
+                if(recordHash.Compare(computedHash) != 0) {
+
+                    // currently just skipping corrupt records
+                    record = new KeyValueRecord();
+                    return false;
+                }
+            }
+            record = new KeyValueRecord {
+                Hash = recordHash,
+                Serial = BitConverter.ToUInt32(header, SERIAL_OFFSET),
+                ValueSize = valueSize,
+                Key = key,
+                Value = value
+            };
+            value.Position = 0;
+            return true;
         }
 
         public void Rename(string newFilename) {
