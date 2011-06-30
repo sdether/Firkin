@@ -17,9 +17,19 @@
  */
 using System;
 using System.IO;
+using System.Text;
 
 namespace Droog.Firkin.Test {
     public static class TestUtil {
+        public static string GetRandomString(Random r) {
+            var builder = new StringBuilder();
+            var n = r.Next(50) + 30;
+            for(var i = 0; i < n; i++) {
+                builder.Append(Guid.NewGuid());
+            }
+            return builder.ToString();
+        }
+
         public static byte[] GetRandomBytes(Random r) {
             var bytes = new byte[r.Next(50) + 50];
             for(var i = 0; i < bytes.Length; i++) {

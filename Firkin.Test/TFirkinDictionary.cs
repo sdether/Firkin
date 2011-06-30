@@ -18,12 +18,16 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using log4net;
 using NUnit.Framework;
 
 namespace Droog.Firkin.Test {
 
     [TestFixture]
     public class TFirkinDictionary {
+
+        private static readonly ILog _log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         private FirkinDictionary<int, string> _dictionary;
         private string _path;
@@ -39,7 +43,9 @@ namespace Droog.Firkin.Test {
 
         [TearDown]
         public void Teardown() {
-            _dictionary.Dispose();
+            if(_dictionary != null) {
+                _dictionary.Dispose();
+            }
             Directory.Delete(_path, true);
         }
 
@@ -80,10 +86,10 @@ namespace Droog.Firkin.Test {
             }
 
             foreach(var kvp in _dictionary) {
-                Assert.AreEqual(dictionary[kvp.Key],kvp.Value);
+                Assert.AreEqual(dictionary[kvp.Key], kvp.Value);
                 dictionary.Remove(kvp.Key);
             }
-            Assert.AreEqual(0,dictionary.Count);
+            Assert.AreEqual(0, dictionary.Count);
         }
 
         [Test]
@@ -118,5 +124,46 @@ namespace Droog.Firkin.Test {
             }
             Assert.AreEqual(0, hashSet.Count);
         }
+
+        [Test]
+        public void Cache_scenario_write_consistency_with_multiple_merges() {
+            var r = new Random(1234);
+            var keys = new List<string>();
+            var n = 1000;
+            for(var i = 0; i < n; i++) {
+                keys.Add(Guid.NewGuid().ToString());
+            }
+            var d = new FirkinDictionary<string, string>(
+                 _path,
+                 1024 * 1024,
+                 Serialization.SerializerRepository.GetByteArraySerializer<string>(),
+                 Serialization.SerializerRepository.GetStreamSerializer<string>()
+           );
+            var dictionary = new Dictionary<string, string>();
+            for(var j = 0; j < 4; j++) {
+                foreach(var key in keys.OrderBy(x => r.Next(n))) {
+                    var v = TestUtil.GetRandomString(r);
+                    dictionary[key] = v;
+                    if(d.ContainsKey(key)) {
+                        var x = d[key];
+                    }
+                    d[key] = v;
+                }
+                foreach(var key in d.Keys.OrderBy(x => r.Next(1000)).Take(n / 2).ToArray()) {
+                    dictionary.Remove(key);
+                    d.Remove(key);
+                }
+                d.Merge();
+            }
+            foreach(var file in Directory.GetFiles(_path)) {
+                _log.DebugFormat(file);
+            }
+            Assert.AreEqual(dictionary.Count, d.Count);
+            foreach(var pair in dictionary) {
+                Assert.AreEqual(pair.Value, d[pair.Key]);
+            }
+        }
+
+
     }
 }

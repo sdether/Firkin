@@ -387,7 +387,6 @@ namespace Droog.Firkin.Test {
             }
         }
 
-
         [Test]
         public void Read_write_delete_consistency_with_multiple_merges() {
             var r = new Random(1234);
