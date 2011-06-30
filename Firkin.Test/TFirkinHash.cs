@@ -230,6 +230,24 @@ namespace Droog.Firkin.Test {
         }
 
         [Test]
+        public void Can_call_merge_and_enumerate_data() {
+            _hash = new FirkinHash<string>(_path, 60);
+            var stream = "bar1".ToStream();
+            _hash.Put("foo1", stream, stream.Length);
+            stream = "bar2".ToStream();
+            _hash.Put("foo2", stream, stream.Length);
+            stream = "bar3".ToStream();
+            _hash.Put("foo3", stream, stream.Length);
+            stream = "bar4".ToStream();
+            _hash.Put("foo4", stream, stream.Length);
+            stream = "bar1x".ToStream();
+            _hash.Put("foo1", stream, stream.Length);
+            _hash.Merge();
+            Assert.AreEqual(new[] { "bar1x", "bar2", "bar3", "bar4" }, (from item in _hash orderby item.Key select item.Value.To<string>()).ToArray());
+            Assert.AreEqual(new[] { "bar1x", "bar2", "bar3", "bar4" }, (from item in _hash orderby item.Key select item.Value.To<string>()).ToArray());
+        }
+
+        [Test]
         public void Can_call_merge_and_reload_hash_then_retrieve_data() {
             _hash = new FirkinHash<string>(_path, 30);
             var stream = "bar1".ToStream();
