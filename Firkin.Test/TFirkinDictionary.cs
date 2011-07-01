@@ -176,6 +176,58 @@ namespace Droog.Firkin.Test {
             }
         }
 
+        [Test, Ignore]
+        public void Memory_consumption() {
+            var r = new Random(1234);
+            var keys = new Queue<string>();
+            AddItems(keys, 200);
+            var baseline = GC.GetTotalMemory(true);
+            using(var d = new FirkinDictionary<string, string>(_path)) {
+                var n = 0;
+                var t = 0;
+                var m = 0;
+                while(keys.Any()) {
+                    n++;
+                    t++;
+                    var key = keys.Dequeue();
+                    var v = TestUtil.GetRandomString(r);
+                    if(d.ContainsKey(key)) {
+                        var x = d[key];
+                    }
+                    d[key] = v;
+                    switch(r.Next(10)) {
+                    case 1:
+                        keys.Enqueue(key);
+                        break;
+                    case 4:
+                        AddItems(keys, 10);
+                        break;
+                    }
+                    if(n >= 5000) {
+                        m++;
+                        var before = GC.GetTotalMemory(true);
+                        d.Merge();
+                        var after = GC.GetTotalMemory(true);
+                        var c = d.Count;
+                        Console.WriteLine(
+                            "merge {0}, iteration {1}, items: {2}, before {3:0.00}MB, after {4:0.00}MB, storage {5:0.00}bytes/item)",
+                            m,
+                            t,
+                            c,
+                            (before - baseline) / 1024 / 1024,
+                            (after - baseline) / 1024 / 1024,
+                            (after - baseline) / c
+                            );
+                        n = 0;
+                    }
+                    if(t >= 200000) {
+                        break;
+                    }
+                }
+                _log.DebugFormat("total items {0} after {1} iterations with {2} left in queue", d.Count, t, keys.Count);
+            }
+        }
+
         private void AddItems(Queue<string> keys, int n) {
             for(var i = 0; i < n; i++) {
                 keys.Enqueue(Guid.NewGuid().ToString());
