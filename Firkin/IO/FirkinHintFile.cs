@@ -38,7 +38,7 @@ namespace Droog.Firkin.IO {
         public FirkinHintFile(string filename) {
             _filename = filename;
             _stream = File.Open(filename, FileMode.OpenOrCreate);
-            _log.DebugFormat("opened hint file '{0}' ", _filename);
+            _log.DebugFormat("opened hint file '{0}' ", Path.GetFileName(_filename));
         }
 
         public void WriteHint(KeyValueRecord data, uint valuePosition) {
@@ -52,6 +52,7 @@ namespace Droog.Firkin.IO {
         }
 
         public void Dispose() {
+            _log.DebugFormat("disposing hint file '{0}' ", Path.GetFileName(_filename));
             _stream.Close();
             _stream.Dispose();
         }

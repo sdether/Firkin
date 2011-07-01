@@ -65,7 +65,7 @@ namespace Droog.Firkin.IO {
             _write = write;
             _serial = serial;
             _stream = write ? File.Open(filename, FileMode.OpenOrCreate) : File.OpenRead(filename);
-            _log.DebugFormat("opened {0} file '{1}' as id {2}", _write ? "read/write" : "read-only", _filename, _fileId);
+            _log.DebugFormat("opened {0} file '{1}' as id {2}", _write ? "read/write" : "read-only", Path.GetFileName(_filename), _fileId);
         }
 
         public string Filename { get { return _filename; } }
@@ -221,7 +221,7 @@ namespace Droog.Firkin.IO {
 
         public void Dispose() {
             if(!_streamSyncRoot.IsDisposed) {
-                _log.DebugFormat("disposing file '{0}'", _filename);
+                _log.DebugFormat("disposing file '{0}'", Path.GetFileName(_filename));
                 _stream.Close();
                 _stream.Dispose();
                 _streamSyncRoot.IsDisposed = true;

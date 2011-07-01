@@ -131,7 +131,6 @@ namespace Droog.Firkin {
 
         public void Merge() {
 
-            // TODO: need to make sure that merged files fit in the number space between 0 and active, regardless of requested max file size,
             lock(_mergeSyncRoot) {
                 IFirkinFile[] oldFiles;
                 IFirkinFile head;
@@ -139,7 +138,7 @@ namespace Droog.Firkin {
                     head = _head;
                     oldFiles = _files.Values.Where(x => x != head).OrderBy(x => x.FileId).ToArray();
                 }
-                _log.DebugFormat("starting merge of {0} files in '{1}'", oldFiles.Length, _storeDirectory);
+                _log.DebugFormat("starting merge of {0} files (with head at id {1}) in '{2}' ", oldFiles.Length, head.FileId, _storeDirectory);
                 if(oldFiles.Length == 0) {
 
                     // not merging if there is only one archive file
@@ -191,7 +190,11 @@ namespace Droog.Firkin {
                         newRecord.Serial = ++serial;
                         var valuePosition = current.Data.Write(newRecord);
                         current.Hint.WriteHint(newRecord, valuePosition);
-                        if(current.Data.Size > _maxFileSize) {
+
+                        // if our current file is over the maxsize and not about to collide with the head's id ...
+                        if(current.Data.Size > _maxFileSize && fileId < head.FileId) {
+
+                            // ... set it to null, so we can create the next file
                             current = null;
                         }
                         active++;
@@ -238,36 +241,55 @@ namespace Droog.Firkin {
                     _index = newIndex;
                     _files = newFiles;
                 }
-
                 try {
+
                     // move old files out of the way
                     foreach(var file in oldFiles) {
                         file.Dispose();
-                        File.Move(file.Filename, GetOldDataFilename(file.FileId));
+                        var oldFile = GetOldDataFilename(file.FileId);
+#if DEBUG
+                        _log.DebugFormat("moving old from {0} to {1}", Path.GetFileName(file.Filename), Path.GetFileName(oldFile));
+#endif
+                        File.Move(file.Filename, oldFile);
                         var hintfile = GetHintFilename(file.FileId);
                         if(File.Exists(hintfile)) {
-                            File.Move(hintfile, GetOldHintFilename(fileId));
+                            var oldHintFile = GetOldHintFilename(file.FileId);
+#if DEBUG
+                            _log.DebugFormat("moving old hint from {0} to {1}", Path.GetFileName(hintfile), Path.GetFileName(oldHintFile));
+#endif
+                            File.Move(hintfile, oldHintFile);
                         }
                     }
 
                     // move new files into place
                     foreach(var file in mergeFiles) {
+#if DEBUG
+                        _log.DebugFormat("creating file and hint for id {0}", file.FileId);
+#endif
                         file.Rename(GetDataFilename(file.FileId));
                         File.Move(GetMergeHintFilename(file.FileId), GetHintFilename(file.FileId));
                     }
 
                     // delete old files
                     foreach(var file in oldFiles) {
-                        File.Delete(GetOldDataFilename(file.FileId));
+                        var oldFile = GetOldDataFilename(file.FileId);
+#if DEBUG
+                        _log.DebugFormat("deleting old file {0}", Path.GetFileName(oldFile));
+#endif
+                        File.Delete(oldFile);
                         var hintfile = GetOldHintFilename(file.FileId);
                         if(File.Exists(hintfile)) {
+#if DEBUG
+                            _log.DebugFormat("deleting old hint file {0}", Path.GetFileName(hintfile));
+#endif
                             File.Delete(hintfile);
                         }
                     }
-                } catch {
+                } catch(Exception e) {
 
                     // something went wrong, try to recover to pre-merge state
                     // TODO: go back to pre-merge state
+                    _log.Warn("Unable to complete merge", e);
                 }
             }
             _log.DebugFormat("completed merge in '{0}'", _storeDirectory);

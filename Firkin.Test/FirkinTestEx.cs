@@ -23,7 +23,7 @@ namespace Droog.Firkin.Test {
     public static class TestUtil {
         public static string GetRandomString(Random r) {
             var builder = new StringBuilder();
-            var n = r.Next(50) + 30;
+            var n = r.Next(20) + 20;
             for(var i = 0; i < n; i++) {
                 builder.Append(Guid.NewGuid());
             }

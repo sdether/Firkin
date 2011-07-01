@@ -128,42 +128,58 @@ namespace Droog.Firkin.Test {
         [Test]
         public void Cache_scenario_write_consistency_with_multiple_merges() {
             var r = new Random(1234);
-            var keys = new List<string>();
-            var n = 1000;
-            for(var i = 0; i < n; i++) {
-                keys.Add(Guid.NewGuid().ToString());
-            }
-            var d = new FirkinDictionary<string, string>(
+            var keys = new Queue<string>();
+            AddItems(keys, 200);
+            using(var d = new FirkinDictionary<string, string>(
                  _path,
                  1024 * 1024,
                  Serialization.SerializerRepository.GetByteArraySerializer<string>(),
                  Serialization.SerializerRepository.GetStreamSerializer<string>()
-           );
-            var dictionary = new Dictionary<string, string>();
-            for(var j = 0; j < 4; j++) {
-                foreach(var key in keys.OrderBy(x => r.Next(n))) {
+           )) {
+                var dictionary = new Dictionary<string, string>();
+                var n = 0;
+                var t = 0;
+                while(keys.Any()) {
+                    n++;
+                    t++;
+                    var key = keys.Dequeue();
                     var v = TestUtil.GetRandomString(r);
                     dictionary[key] = v;
                     if(d.ContainsKey(key)) {
                         var x = d[key];
                     }
                     d[key] = v;
+                    switch(r.Next(10)) {
+                    case 1:
+                        keys.Enqueue(key);
+                        break;
+                    case 4:
+                        AddItems(keys, 10);
+                        break;
+                    }
+                    if(n >= 3000) {
+                        d.Merge();
+                        n = 0;
+                    }
+                    if(t >= 20000) {
+                        break;
+                    }
                 }
-                foreach(var key in d.Keys.OrderBy(x => r.Next(1000)).Take(n / 2).ToArray()) {
-                    dictionary.Remove(key);
-                    d.Remove(key);
+                foreach(var file in Directory.GetFiles(_path)) {
+                    _log.DebugFormat(Path.GetFileName(file));
                 }
-                d.Merge();
-            }
-            foreach(var file in Directory.GetFiles(_path)) {
-                _log.DebugFormat(file);
-            }
-            Assert.AreEqual(dictionary.Count, d.Count);
-            foreach(var pair in dictionary) {
-                Assert.AreEqual(pair.Value, d[pair.Key]);
+                _log.DebugFormat("total items {0} after {1} iterations with {2} left in queue", d.Count, t, keys.Count);
+                Assert.AreEqual(dictionary.Count, d.Count);
+                foreach(var pair in dictionary) {
+                    Assert.AreEqual(pair.Value, d[pair.Key]);
+                }
             }
         }
 
-
+        private void AddItems(Queue<string> keys, int n) {
+            for(var i = 0; i < n; i++) {
+                keys.Enqueue(Guid.NewGuid().ToString());
+            }
+        }
     }
 }
