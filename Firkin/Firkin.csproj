@@ -52,6 +52,7 @@
     <Compile Include="Data\HintRecord.cs" />
     <Compile Include="FirkinHashChange.cs" />
     <Compile Include="FirkinHashChangeAction.cs" />
+    <Compile Include="Data\LazyFirkinCollection.cs" />
     <Compile Include="Serialization\BinaryFormatterGenerator.cs" />
     <Compile Include="Serialization\ISerializerGenerator.cs" />
     <Compile Include="Serialization\IStreamSerializer.cs" />

@@ -19,6 +19,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using Droog.Firkin.Data;
 using Droog.Firkin.Serialization;
 using System.Linq;
 
@@ -41,7 +42,13 @@ namespace Droog.Firkin {
         }
 
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator() {
-            return _hash.Select(pair => new KeyValuePair<TKey, TValue>(pair.Key, _valueSerializer.Deserialize(pair.Value))).GetEnumerator();
+            var keys = Keys;
+            foreach(var key in keys) {
+                var v = _hash.Get(key);
+                if(v != null) {
+                    yield return new KeyValuePair<TKey, TValue>(key, _valueSerializer.Deserialize(v));
+                }
+            }
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
@@ -129,8 +136,11 @@ namespace Droog.Firkin {
             get { return _hash.Keys.ToList(); }
         }
 
+
         public ICollection<TValue> Values {
-            get { return this.Select(x => x.Value).ToList(); }
+            get {
+                return new LazyFirkinCollection<TKey, TValue>(Keys, key => _hash.Get(key), stream => _valueSerializer.Deserialize(stream));
+            }
         }
 
         public void Merge() {
