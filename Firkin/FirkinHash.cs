@@ -90,6 +90,9 @@ namespace Droog.Firkin {
         }
 
         public void Put(TKey key, Stream stream, uint length) {
+            if((object)key == null) {
+                throw new ArgumentNullException("key");
+            }
             if(length == 0) {
                 Delete(key);
                 return;
@@ -125,6 +128,9 @@ namespace Droog.Firkin {
         }
 
         public FirkinStream Get(TKey key) {
+            if((object)key == null) {
+                return null;
+            }
             KeyInfo info;
             return !_index.TryGetValue(key, out info) ? null : _files[info.FileId].ReadValue(info);
         }

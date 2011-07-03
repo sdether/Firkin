@@ -22,9 +22,15 @@ using System.IO;
 using Droog.Firkin.Data;
 using Droog.Firkin.Serialization;
 using System.Linq;
+using log4net;
 
 namespace Droog.Firkin {
     public class FirkinDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDisposable {
+
+        //--- Class Fields ---
+        public static int MaxValueSize = 100 * 1024 * 1024;
+        public static bool ThrowOnCorruptRecord = true;
+        protected static readonly ILog _log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         //--- Fields ---
         private readonly IFirkinHash<TKey> _hash;
@@ -46,7 +52,10 @@ namespace Droog.Firkin {
             foreach(var key in keys) {
                 var v = _hash.Get(key);
                 if(v != null) {
-                    yield return new KeyValuePair<TKey, TValue>(key, _valueSerializer.Deserialize(v));
+                    TValue value;
+                    if(TryDeserialize(key, v, out value)) {
+                        yield return new KeyValuePair<TKey, TValue>(key, value);
+                    }
                 }
             }
         }
@@ -115,6 +124,19 @@ namespace Droog.Firkin {
                 value = default(TValue);
                 return false;
             }
+            return TryDeserialize(key, stream, out value);
+        }
+
+        private bool TryDeserialize(TKey key, FirkinStream stream, out TValue value) {
+            if(stream.Length > MaxValueSize) {
+                var error = string.Format("Stream for key '{0}' was too large, length: {1}. Dictionary is likely corrupted!", key, stream.Length);
+                if(ThrowOnCorruptRecord) {
+                    throw new CorruptDictionaryException(error);
+                }
+                _log.Error(error);
+                value = default(TValue);
+                return false;
+            }
             value = _valueSerializer.Deserialize(stream);
             return true;
         }
@@ -139,7 +161,7 @@ namespace Droog.Firkin {
 
         public ICollection<TValue> Values {
             get {
-                return new LazyFirkinCollection<TKey, TValue>(Keys, key => _hash.Get(key), stream => _valueSerializer.Deserialize(stream));
+                return new LazyFirkinCollection<TKey, TValue>(Keys, key => _hash.Get(key), TryDeserialize);
             }
         }
 

@@ -24,9 +24,9 @@ namespace Droog.Firkin.Data {
     public class LazyFirkinCollection<TKey, TValue> : ICollection<TValue> {
         private readonly ICollection<TKey> _keys;
         private readonly Func<TKey, FirkinStream> _getStream;
-        private readonly Func<FirkinStream, TValue> _getValue;
+        private readonly TryDeserializeDelegate<TKey, TValue> _getValue;
 
-        public LazyFirkinCollection(ICollection<TKey> keys, Func<TKey, FirkinStream> getStream, Func<FirkinStream, TValue> getValue) {
+        public LazyFirkinCollection(ICollection<TKey> keys, Func<TKey, FirkinStream> getStream, TryDeserializeDelegate<TKey, TValue> getValue) {
             _keys = keys;
             _getStream = getStream;
             _getValue = getValue;
@@ -38,7 +38,10 @@ namespace Droog.Firkin.Data {
                 if(s == null) {
                     continue;
                 }
-                yield return _getValue(s);
+                TValue value;
+                if(_getValue(key, s, out value)) {
+                    yield return value;
+                }
             }
         }
 
@@ -67,4 +70,6 @@ namespace Droog.Firkin.Data {
 
         public bool IsReadOnly { get { return true; } }
     }
+
+    public delegate bool TryDeserializeDelegate<TKey, TValue>(TKey key, FirkinStream stream, out TValue value);
 }

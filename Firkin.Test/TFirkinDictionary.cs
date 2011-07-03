@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using log4net;
 using NUnit.Framework;
 
@@ -176,12 +177,13 @@ namespace Droog.Firkin.Test {
             }
         }
 
-        [Test, Ignore]
+        [Test, Explicit]
         public void Memory_consumption() {
             var r = new Random(1234);
             var keys = new Queue<string>();
             AddItems(keys, 200);
             var baseline = GC.GetTotalMemory(true);
+            string capture = "";
             using(var d = new FirkinDictionary<string, string>(_path)) {
                 var n = 0;
                 var t = 0;
@@ -193,6 +195,7 @@ namespace Droog.Firkin.Test {
                     var v = TestUtil.GetRandomString(r);
                     if(d.ContainsKey(key)) {
                         var x = d[key];
+                        capture = ".." + x;
                     }
                     d[key] = v;
                     switch(r.Next(10)) {
@@ -200,7 +203,9 @@ namespace Droog.Firkin.Test {
                         keys.Enqueue(key);
                         break;
                     case 4:
-                        AddItems(keys, 10);
+                        if(keys.Count < 200) {
+                            AddItems(keys, 10);
+                        }
                         break;
                     }
                     if(n >= 5000) {
@@ -223,8 +228,97 @@ namespace Droog.Firkin.Test {
                     if(t >= 200000) {
                         break;
                     }
+                    if(keys.Count < 50) {
+                        AddItems(keys, 100);
+                    }
                 }
-                _log.DebugFormat("total items {0} after {1} iterations with {2} left in queue", d.Count, t, keys.Count);
+                Console.WriteLine("total items {0} after {1} iterations with {2} left in queue", d.Count, t, keys.Count);
+                _log.Debug(capture.Substring(0, 10));
+            }
+        }
+
+        [Test, Explicit]
+        public void Memory_consumption_parallel_writes_and_merges() {
+            var r = new Random(1234);
+            var keys = new Queue<string>();
+            AddItems(keys, 200);
+            var baseline = GC.GetTotalMemory(true);
+            using(var d = new FirkinDictionary<string, string>(_path)) {
+                var t = 0;
+                var capture = "";
+                var done = false;
+                var n = 0;
+                var merger = new Thread(() => {
+                    var m = 0;
+                    while(!done) {
+                        if(n >= 5000) {
+                            m++;
+                            var before = GC.GetTotalMemory(true);
+                            Console.WriteLine(
+                                "merge {0}, before {1:0.00}MB)",
+                                m,
+                                (before - baseline) / 1024 / 1024
+                            );
+                            var expiredKeys = (from entry in d
+                                               where entry.Value.Length != 0 && r.Next(4) == 1
+                                               select entry.Key).ToArray();
+                            foreach(var key in expiredKeys) {
+                                d.Remove(key);
+                            }
+                            var during = GC.GetTotalMemory(true);
+                            Console.WriteLine(
+                                "merge {0}, during {1:0.00}MB)",
+                                m,
+                                (during - baseline) / 1024 / 1024
+                            );
+                            d.Merge();
+
+                            var after = GC.GetTotalMemory(true);
+                            var c = d.Count;
+                            Console.WriteLine(
+                                "merge {0}, iteration {1}, items: {2}, after {3:0.00}MB, storage {4:0.00}bytes/item)",
+                                m,
+                                t,
+                                c,
+                                (after - baseline) / 1024 / 1024,
+                                (after - baseline) / c
+                            );
+                            n = 0;
+                        }
+                    }
+                }) { IsBackground = true };
+                merger.Start();
+                while(keys.Any()) {
+                    n++;
+                    t++;
+                    var key = keys.Dequeue();
+                    var v = TestUtil.GetRandomString(r);
+                    if(d.ContainsKey(key)) {
+                        var x = d[key];
+                        capture = ".." + x;
+                    }
+                    d[key] = v;
+                    switch(r.Next(10)) {
+                    case 1:
+                        keys.Enqueue(key);
+                        break;
+                    case 4:
+                        if(keys.Count < 200) {
+                            AddItems(keys, 10);
+                        }
+                        break;
+                    }
+                    if(t >= 1000000) {
+                        break;
+                    }
+                    if(keys.Count < 50) {
+                        AddItems(keys, 100);
+                    }
+                }
+                done = true;
+                merger.Join();
+                Console.WriteLine("total items {0} after {1} iterations with {2} left in queue", d.Count, t, keys.Count);
+                _log.Debug(capture.Substring(0, 10));
             }
         }
 

@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using log4net;
 using NUnit.Framework;
 using Droog.Firkin.Util;
@@ -419,6 +420,117 @@ namespace Droog.Firkin.Test {
             Assert.AreEqual(dictionary.Count, _hash.Count);
             foreach(var pair in dictionary) {
                 Assert.AreEqual(0, pair.Value.Compare(_hash.Get(pair.Key).ReadBytes()));
+            }
+        }
+
+        [Test]
+        public void Concurrent_read_write_delete_consistency_with_multiple_merges() {
+            var r = new Random(1234);
+            var id = 0;
+            var keys = new Queue<string>();
+            AddKeys(keys, 200, ref id);
+            var mergeCounter = 0;
+            var merges = 0;
+            _hash = new FirkinHash<string>(_path, 100 * 2048);
+            var dictionary = new Dictionary<string, byte[]>();
+            var modified = new HashSet<string>();
+            var workers = new List<Thread>();
+            var faults = new List<Exception>();
+            var iterations = 0;
+            var maxIterations = 10000;
+            for(var i = 0; i < 10; i++) {
+                var workerId = i;
+                var worker = new Thread(() => {
+                    try {
+                        _log.DebugFormat("worker {0} started", workerId);
+                        while(iterations < maxIterations) {
+                            Interlocked.Increment(ref iterations);
+                            Interlocked.Increment(ref mergeCounter);
+                            string k;
+                            lock(keys) {
+                                if(keys.Count < 10) {
+                                    AddKeys(keys, 100, ref id);
+                                }
+                                k = keys.Dequeue();
+                            }
+                            var entry = _hash.Get(k);
+                            var v = TestUtil.GetRandomBytes(r);
+                            if(entry != null) {
+                                lock(keys) {
+                                    if(modified.Contains(k)) {
+                                        continue;
+                                    }
+                                    modified.Add(k);
+                                }
+                                var v2 = entry.ReadBytes();
+                                if(r.Next(4) == 3) {
+                                    lock(dictionary) {
+                                        dictionary.Remove(k);
+                                    }
+                                    _hash.Delete(k);
+                                } else {
+                                    lock(dictionary) {
+                                        dictionary[k] = v;
+                                    }
+                                    _hash.Put(k, v.ToStream(), v.Length);
+                                }
+                            } else {
+                                lock(dictionary) {
+                                    dictionary[k] = v;
+                                }
+                                _hash.Put(k, v.ToStream(), v.Length);
+                            }
+                            lock(keys) {
+                                if(!modified.Contains(k) && r.Next(3) == 1) {
+                                    keys.Enqueue(k);
+                                }
+                            }
+                            Thread.Sleep(10);
+                        }
+                        _log.DebugFormat("worker {0} finished", workerId);
+                    } catch(Exception e) {
+                        faults.Add(e);
+                    }
+                }) { IsBackground = true };
+                worker.Start();
+                workers.Add(worker);
+            }
+            var start = DateTime.UtcNow;
+            while(iterations < maxIterations) {
+                if(DateTime.UtcNow > start.AddSeconds(30)) {
+                    throw new TimeoutException(string.Format("didn't finish, merges: {0}, items {1}, existing modified: {2}", merges, _hash.Count, modified.Count));
+                }
+                if(faults.Any()) {
+                    throw faults.First();
+                }
+                if(mergeCounter >= 2000) {
+                    merges++;
+                    _hash.Merge();
+                    mergeCounter = 0;
+                    _log.DebugFormat("merge {0} completed", merges);
+                }
+            }
+            foreach(var worker in workers) {
+                worker.Join();
+            }
+            var files = 0;
+            foreach(var file in Directory.GetFiles(_path)) {
+                _log.DebugFormat(Path.GetFileName(file));
+                if(Path.GetExtension(file) == ".data") {
+                    files++;
+                }
+            }
+            _log.DebugFormat("merges: {0}, items {1}, existing modified: {2}, files: {3}", merges, _hash.Count, modified.Count, files);
+            Assert.AreEqual(dictionary.Count, _hash.Count);
+            foreach(var pair in dictionary) {
+                Assert.AreEqual(0, pair.Value.Compare(_hash.Get(pair.Key).ReadBytes()));
+            }
+        }
+
+        private void AddKeys(Queue<string> keys, int n, ref int id) {
+            for(var i = 0; i < n; i++) {
+                id++;
+                keys.Enqueue("key_" + id);
             }
         }
 
