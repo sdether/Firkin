@@ -82,6 +82,7 @@ namespace Droog.Firkin {
 
         //--- Properties ---
         public int Count { get { return _index.Count; } }
+        public long MaxFileSize { get { return _maxFileSize; } }
         public IEnumerable<TKey> Keys { get { lock(_indexSyncRoot) { return _index.Keys.ToArray(); } } }
 
         //--- Methods ---

@@ -21,7 +21,6 @@ namespace Droog.Firkin {
     public class CorruptDictionaryException : Exception {
         public CorruptDictionaryException(string error)
             : base(error) {
-            throw new NotImplementedException();
         }
     }
 }

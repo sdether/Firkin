@@ -28,8 +28,6 @@ namespace Droog.Firkin {
     public class FirkinDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDisposable {
 
         //--- Class Fields ---
-        public static int MaxValueSize = 100 * 1024 * 1024;
-        public static bool ThrowOnCorruptRecord = true;
         protected static readonly ILog _log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         //--- Fields ---
@@ -128,14 +126,10 @@ namespace Droog.Firkin {
         }
 
         private bool TryDeserialize(TKey key, FirkinStream stream, out TValue value) {
-            if(stream.Length > MaxValueSize) {
+            if(stream.Length > _hash.MaxFileSize) {
                 var error = string.Format("Stream for key '{0}' was too large, length: {1}. Dictionary is likely corrupted!", key, stream.Length);
-                if(ThrowOnCorruptRecord) {
-                    throw new CorruptDictionaryException(error);
-                }
-                _log.Error(error);
-                value = default(TValue);
-                return false;
+                _log.Warn(error);
+                throw new CorruptDictionaryException(error);
             }
             value = _valueSerializer.Deserialize(stream);
             return true;

@@ -30,5 +30,6 @@ namespace Droog.Firkin {
         void Truncate();
         int Count { get; }
         IEnumerable<TKey> Keys { get; }
+        long MaxFileSize { get; }
     }
 }
