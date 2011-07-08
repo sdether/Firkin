@@ -21,6 +21,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using log4net;
+using log4net.Config;
 using NUnit.Framework;
 
 namespace Droog.Firkin.Test {
@@ -153,12 +154,12 @@ namespace Droog.Firkin.Test {
                     }
                     d[key] = v;
                     switch(r.Next(10)) {
-                    case 1:
-                        keys.Enqueue(key);
-                        break;
-                    case 4:
-                        AddItems(keys, 10);
-                        break;
+                        case 1:
+                            keys.Enqueue(key);
+                            break;
+                        case 4:
+                            AddItems(keys, 10);
+                            break;
                     }
                     if(n >= 3000) {
                         d.Merge();
@@ -231,6 +232,7 @@ namespace Droog.Firkin.Test {
 
         [Test, Explicit]
         public void Run_till_crash_with_parallel_writes() {
+            BasicConfigurator.Configure();
             var r = new Random(1234);
             int serial = 0;
             var keys = new Queue<string>();
@@ -251,9 +253,11 @@ namespace Droog.Firkin.Test {
                                 lock(keys) {
                                     nextKey = keys.Dequeue();
                                 }
-                                if(d.ContainsKey(nextKey)) {
-                                    last = d[nextKey];
-                                }
+                                try {
+                                    if(d.ContainsKey(nextKey)) {
+                                        last = d[nextKey];
+                                    }
+                                } catch(ObjectDisposedException) { }
                                 var v = (uint)Interlocked.Increment(ref serial);
                                 d[nextKey] = v;
                                 lock(keys) {
@@ -264,7 +268,7 @@ namespace Droog.Firkin.Test {
                                 }
                             }
                         } catch(Exception e) {
-                            Console.WriteLine("Worker {0} failed: {1}\r\n{2}", workerId, e.Message, e.StackTrace);
+                            Console.WriteLine("Worker {0} failed: {1}\r\n{2}", workerId, e.Message, e);
                             faults.Add(e);
                         }
                     }) { IsBackground = true };
@@ -295,7 +299,8 @@ namespace Droog.Firkin.Test {
                                 Console.WriteLine(Path.GetFileName(file));
                             }
                         } catch(Exception e) {
-                            Console.WriteLine("merger failed: {0}\r\n{1}", e.Message, e.StackTrace);
+                            Console.WriteLine("merger failed: {0}\r\n{1}", e.Message, e);
+                            throw e;
                         }
                     }
                     Thread.Sleep(1000);
@@ -364,14 +369,14 @@ namespace Droog.Firkin.Test {
                     }
                     d[key] = v;
                     switch(r.Next(10)) {
-                    case 1:
-                        keys.Enqueue(key);
-                        break;
-                    case 4:
-                        if(keys.Count < 200) {
-                            AddItems(keys, 10);
-                        }
-                        break;
+                        case 1:
+                            keys.Enqueue(key);
+                            break;
+                        case 4:
+                            if(keys.Count < 200) {
+                                AddItems(keys, 10);
+                            }
+                            break;
                     }
                     if(n >= 5000) {
                         m++;
@@ -464,14 +469,14 @@ namespace Droog.Firkin.Test {
                     }
                     d[key] = v;
                     switch(r.Next(10)) {
-                    case 1:
-                        keys.Enqueue(key);
-                        break;
-                    case 4:
-                        if(keys.Count < 200) {
-                            AddItems(keys, 10);
-                        }
-                        break;
+                        case 1:
+                            keys.Enqueue(key);
+                            break;
+                        case 4:
+                            if(keys.Count < 200) {
+                                AddItems(keys, 10);
+                            }
+                            break;
                     }
                     if(t >= 1000000) {
                         break;

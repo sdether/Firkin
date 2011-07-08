@@ -45,8 +45,12 @@ namespace Droog.Firkin.Test {
 
         [TearDown]
         public void Teardown() {
-            _hash.Dispose();
-            Directory.Delete(_path, true);
+            if(_hash != null) {
+                _hash.Dispose();
+            }
+            if(Directory.Exists(_path)) {
+                Directory.Delete(_path, true);
+            }
         }
 
         [Test]
@@ -423,7 +427,7 @@ namespace Droog.Firkin.Test {
             }
         }
 
-        [Test]
+        [Test, Explicit]
         public void Concurrent_read_write_delete_consistency_with_multiple_merges() {
             var r = new Random(1234);
             var id = 0;
@@ -444,7 +448,10 @@ namespace Droog.Firkin.Test {
                     try {
                         _log.DebugFormat("worker {0} started", workerId);
                         while(iterations < maxIterations) {
-                            Interlocked.Increment(ref iterations);
+                            var j = Interlocked.Increment(ref iterations);
+                            if(j % 100 == 0) {
+                                _log.DebugFormat("iteration {0}", j);
+                            }
                             Interlocked.Increment(ref mergeCounter);
                             string k;
                             lock(keys) {
@@ -497,16 +504,16 @@ namespace Droog.Firkin.Test {
             }
             var start = DateTime.UtcNow;
             while(iterations < maxIterations) {
-                if(DateTime.UtcNow > start.AddSeconds(30)) {
-                    throw new TimeoutException(string.Format("didn't finish, merges: {0}, items {1}, existing modified: {2}", merges, _hash.Count, modified.Count));
-                }
                 if(faults.Any()) {
                     throw faults.First();
                 }
+                if(DateTime.UtcNow > start.AddMinutes(5)) {
+                    throw new TimeoutException(string.Format("didn't finish, merges: {0}, items: {1}, queue: {2}, existing modified: {2}", merges, _hash.Count, keys.Count, modified.Count));
+                }
                 if(mergeCounter >= 2000) {
                     merges++;
-                    _hash.Merge();
                     mergeCounter = 0;
+                    _hash.Merge();
                     _log.DebugFormat("merge {0} completed", merges);
                 }
             }

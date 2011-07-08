@@ -19,8 +19,6 @@ using System;
 
 namespace Droog.Firkin {
     public class CorruptDictionaryException : Exception {
-        public CorruptDictionaryException(string error)
-            : base(error) {
-        }
+        public CorruptDictionaryException(string error) : base(error) { }
     }
 }
