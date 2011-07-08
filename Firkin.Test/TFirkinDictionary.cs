@@ -181,7 +181,7 @@ namespace Droog.Firkin.Test {
         }
 
         [Test, Explicit]
-        public void Run_till_crash_with_parallel_merge() {
+        public void Continuous_read_write_delete_merge_with_parallel_merge() {
             var r = new Random(1234);
             uint serial = 0;
             var keys = new Queue<string>();
@@ -231,8 +231,7 @@ namespace Droog.Firkin.Test {
         }
 
         [Test, Explicit]
-        public void Run_till_crash_with_parallel_writes() {
-            BasicConfigurator.Configure();
+        public void Continuous_read_write_delete_merge_with_parallel_writes() {
             var r = new Random(1234);
             int serial = 0;
             var keys = new Queue<string>();
@@ -309,7 +308,7 @@ namespace Droog.Firkin.Test {
         }
 
         [Test, Explicit]
-        public void Run_till_crash_with_serial_merge() {
+        public void Continuous_read_write_delete_merge() {
             var r = new Random(1234);
             uint serial = 0;
             var keys = new Queue<string>();

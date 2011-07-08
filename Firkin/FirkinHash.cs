@@ -118,7 +118,7 @@ namespace Droog.Firkin {
                     throw new KeyTooLargeException(keyBytes.LongLength, MaxKeySize);
                 }
                 var keyInfo = _head.Write(new KeyValuePair() {
-                    Key = _keyBytes,
+                    Key = keyBytes,
                     Value = stream,
                     ValueSize = length
                 });
