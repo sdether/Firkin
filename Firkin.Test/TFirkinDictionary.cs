@@ -21,6 +21,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using log4net;
+using log4net.Config;
 using NUnit.Framework;
 
 namespace Droog.Firkin.Test {
@@ -47,7 +48,9 @@ namespace Droog.Firkin.Test {
             if(_dictionary != null) {
                 _dictionary.Dispose();
             }
-            Directory.Delete(_path, true);
+            if(Directory.Exists(_path)) {
+                Directory.Delete(_path, true);
+            }
         }
 
         [Test]
@@ -151,12 +154,12 @@ namespace Droog.Firkin.Test {
                     }
                     d[key] = v;
                     switch(r.Next(10)) {
-                    case 1:
-                        keys.Enqueue(key);
-                        break;
-                    case 4:
-                        AddItems(keys, 10);
-                        break;
+                        case 1:
+                            keys.Enqueue(key);
+                            break;
+                        case 4:
+                            AddItems(keys, 10);
+                            break;
                     }
                     if(n >= 3000) {
                         d.Merge();
@@ -173,6 +176,172 @@ namespace Droog.Firkin.Test {
                 Assert.AreEqual(dictionary.Count, d.Count);
                 foreach(var pair in dictionary) {
                     Assert.AreEqual(pair.Value, d[pair.Key]);
+                }
+            }
+        }
+
+        [Test, Explicit]
+        public void Continuous_read_write_delete_merge_with_parallel_merge() {
+            var r = new Random(1234);
+            uint serial = 0;
+            var keys = new Queue<string>();
+            AddItems(keys, 1000);
+            uint last = 0;
+            var mergeCounter = 0;
+            var inMerge = false;
+            using(var d = new FirkinDictionary<string, uint>(_path)) {
+                new Thread(() => {
+                    while(true) {
+                        if(mergeCounter > 100000) {
+                            inMerge = true;
+                            Interlocked.Exchange(ref mergeCounter, 0);
+                            var s = serial;
+                            Console.WriteLine("{0} iterations, merge time", s);
+                            var limit = s - 20000;
+                            var remove = (from entry in d where entry.Value < limit select entry.Key).ToArray();
+                            Console.WriteLine("will remove {0} of {1}", remove.Length, d.Count);
+                            foreach(var key in remove) {
+                                d.Remove(key);
+                            }
+                            var preMerge = d.Count;
+                            d.Merge();
+                            var postMerge = d.Count;
+                            inMerge = false;
+                            Console.WriteLine("pre: {0} / post: {1}", preMerge, postMerge);
+                            foreach(var file in Directory.GetFiles(_path)) {
+                                Console.WriteLine(Path.GetFileName(file));
+                            }
+                        }
+                        Thread.Sleep(1000);
+                    }
+                }) { IsBackground = true }.Start();
+                while(true) {
+                    Interlocked.Increment(ref mergeCounter);
+                    var nextKey = keys.Dequeue();
+                    if(d.ContainsKey(nextKey)) {
+                        last = d[nextKey];
+                    }
+                    d[nextKey] = ++serial;
+                    keys.Enqueue(r.Next(10) == 1 ? nextKey : Guid.NewGuid().ToString());
+                    if(inMerge) {
+                        Thread.Sleep(10);
+                    }
+                }
+            }
+        }
+
+        [Test, Explicit]
+        public void Continuous_read_write_delete_merge_with_parallel_writes() {
+            var r = new Random(1234);
+            int serial = 0;
+            var keys = new Queue<string>();
+            AddItems(keys, 1000);
+            uint last = 0;
+            var mergeCounter = 0;
+            var inMerge = false;
+            var faults = new List<Exception>();
+            using(var d = new FirkinDictionary<string, uint>(_path)) {
+                for(var i = 0; i < 10; i++) {
+                    var workerId = i;
+                    var worker = new Thread(() => {
+                        try {
+                            _log.DebugFormat("worker {0} started", workerId);
+                            while(true) {
+                                Interlocked.Increment(ref mergeCounter);
+                                string nextKey;
+                                lock(keys) {
+                                    nextKey = keys.Dequeue();
+                                }
+                                try {
+                                    if(d.ContainsKey(nextKey)) {
+                                        last = d[nextKey];
+                                    }
+                                } catch(ObjectDisposedException) { }
+                                var v = (uint)Interlocked.Increment(ref serial);
+                                d[nextKey] = v;
+                                lock(keys) {
+                                    keys.Enqueue(r.Next(10) == 1 ? nextKey : Guid.NewGuid().ToString());
+                                }
+                                if(inMerge) {
+                                    Thread.Sleep(1000);
+                                }
+                            }
+                        } catch(Exception e) {
+                            Console.WriteLine("Worker {0} failed: {1}\r\n{2}", workerId, e.Message, e);
+                            faults.Add(e);
+                        }
+                    }) { IsBackground = true };
+                    worker.Start();
+                }
+                while(true) {
+                    if(faults.Any()) {
+                        throw faults.First();
+                    }
+                    if(mergeCounter > 100000) {
+                        try {
+                            inMerge = true;
+                            Interlocked.Exchange(ref mergeCounter, 0);
+                            var s = serial;
+                            Console.WriteLine("{0} iterations, merge time", s);
+                            var limit = s - 20000;
+                            var remove = (from entry in d where entry.Value < limit select entry.Key).ToArray();
+                            Console.WriteLine("will remove {0} of {1}", remove.Length, d.Count);
+                            foreach(var key in remove) {
+                                d.Remove(key);
+                            }
+                            var preMerge = d.Count;
+                            d.Merge();
+                            var postMerge = d.Count;
+                            inMerge = false;
+                            Console.WriteLine("pre: {0} / post: {1}", preMerge, postMerge);
+                            foreach(var file in Directory.GetFiles(_path)) {
+                                Console.WriteLine(Path.GetFileName(file));
+                            }
+                        } catch(Exception e) {
+                            Console.WriteLine("merger failed: {0}\r\n{1}", e.Message, e);
+                            throw e;
+                        }
+                    }
+                    Thread.Sleep(1000);
+                }
+            }
+        }
+
+        [Test, Explicit]
+        public void Continuous_read_write_delete_merge() {
+            var r = new Random(1234);
+            uint serial = 0;
+            var keys = new Queue<string>();
+            AddItems(keys, 1000);
+            uint last = 0;
+            var mergeCounter = 0;
+            using(var d = new FirkinDictionary<string, uint>(_path)) {
+                while(true) {
+                    Interlocked.Increment(ref mergeCounter);
+                    var nextKey = keys.Dequeue();
+                    if(d.ContainsKey(nextKey)) {
+                        last = d[nextKey];
+                    }
+                    d[nextKey] = ++serial;
+                    keys.Enqueue(r.Next(10) == 1 ? nextKey : Guid.NewGuid().ToString());
+                    if(mergeCounter > 100000) {
+                        Interlocked.Exchange(ref mergeCounter, 0);
+                        var s = serial;
+                        Console.WriteLine("{0} iterations, merge time", s);
+                        var limit = s - 20000;
+                        var remove = (from entry in d where entry.Value < limit select entry.Key).ToArray();
+                        Console.WriteLine("will remove {0} of {1}", remove.Length, d.Count);
+                        foreach(var key in remove) {
+                            d.Remove(key);
+                        }
+                        var preMerge = d.Count;
+                        d.Merge();
+                        var postMerge = d.Count;
+                        Console.WriteLine("pre: {0} / post: {1}", preMerge, postMerge);
+                        foreach(var file in Directory.GetFiles(_path)) {
+                            Console.WriteLine(Path.GetFileName(file));
+                        }
+                    }
                 }
             }
         }
@@ -199,14 +368,14 @@ namespace Droog.Firkin.Test {
                     }
                     d[key] = v;
                     switch(r.Next(10)) {
-                    case 1:
-                        keys.Enqueue(key);
-                        break;
-                    case 4:
-                        if(keys.Count < 200) {
-                            AddItems(keys, 10);
-                        }
-                        break;
+                        case 1:
+                            keys.Enqueue(key);
+                            break;
+                        case 4:
+                            if(keys.Count < 200) {
+                                AddItems(keys, 10);
+                            }
+                            break;
                     }
                     if(n >= 5000) {
                         m++;
@@ -299,14 +468,14 @@ namespace Droog.Firkin.Test {
                     }
                     d[key] = v;
                     switch(r.Next(10)) {
-                    case 1:
-                        keys.Enqueue(key);
-                        break;
-                    case 4:
-                        if(keys.Count < 200) {
-                            AddItems(keys, 10);
-                        }
-                        break;
+                        case 1:
+                            keys.Enqueue(key);
+                            break;
+                        case 4:
+                            if(keys.Count < 200) {
+                                AddItems(keys, 10);
+                            }
+                            break;
                     }
                     if(t >= 1000000) {
                         break;

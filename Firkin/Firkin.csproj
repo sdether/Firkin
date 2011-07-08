@@ -36,6 +36,7 @@
       <HintPath>..\redist\log4net.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.configuration" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
@@ -50,10 +51,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CorruptDictionaryException.cs" />
+    <Compile Include="CorruptKeyException.cs" />
     <Compile Include="Data\HintRecord.cs" />
     <Compile Include="FirkinHashChange.cs" />
     <Compile Include="FirkinHashChangeAction.cs" />
     <Compile Include="Data\LazyFirkinCollection.cs" />
+    <Compile Include="KeyTooLargeException.cs" />
     <Compile Include="Serialization\BinaryFormatterGenerator.cs" />
     <Compile Include="Serialization\ISerializerGenerator.cs" />
     <Compile Include="Serialization\IStreamSerializer.cs" />

@@ -18,6 +18,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -31,6 +32,7 @@ namespace Droog.Firkin {
 
         //--- Constants ---
         public const long DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
+
         private const string STORAGE_FILE_PREFIX = "store_";
         private const string MERGE_FILE_PREFIX = "merge_";
         private const string OLD_FILE_PREFIX = "old_";
@@ -44,7 +46,18 @@ namespace Droog.Firkin {
         }
 
         //--- Class Fields ---
+        public static readonly uint MaxKeySize = 1024;
         protected static readonly ILog _log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
+        //--- Class Constructors ---
+        static FirkinHash() {
+            try {
+                var max = ConfigurationManager.AppSettings["firkin.maxkeysize"];
+                if(!string.IsNullOrEmpty(max)) {
+                    MaxKeySize = uint.Parse(max);
+                }
+            } catch { }
+        }
 
         //--- Fields ---
         private readonly long _maxFileSize;
@@ -82,6 +95,7 @@ namespace Droog.Firkin {
 
         //--- Properties ---
         public int Count { get { return _index.Count; } }
+        public long MaxFileSize { get { return _maxFileSize; } }
         public IEnumerable<TKey> Keys { get { lock(_indexSyncRoot) { return _index.Keys.ToArray(); } } }
 
         //--- Methods ---
@@ -99,8 +113,12 @@ namespace Droog.Firkin {
             }
             var action = FirkinHashChangeAction.Add;
             lock(_indexSyncRoot) {
+                var keyBytes = _serializer.Serialize(key);
+                if(keyBytes.LongLength > MaxKeySize) {
+                    throw new KeyTooLargeException(keyBytes.LongLength, MaxKeySize);
+                }
                 var keyInfo = _head.Write(new KeyValuePair() {
-                    Key = _serializer.Serialize(key),
+                    Key = keyBytes,
                     Value = stream,
                     ValueSize = length
                 });
@@ -140,11 +158,13 @@ namespace Droog.Firkin {
             lock(_mergeSyncRoot) {
                 IFirkinFile[] oldFiles;
                 IFirkinFile head;
+                int recordCount;
                 lock(_indexSyncRoot) {
                     head = _head;
                     oldFiles = _files.Values.Where(x => x != head).OrderBy(x => x.FileId).ToArray();
+                    recordCount = Count;
                 }
-                _log.DebugFormat("starting merge of {0} files (with head at id {1}) in '{2}' ", oldFiles.Length, head.FileId, _storeDirectory);
+                _log.DebugFormat("starting merge of {0} files, {1} records (with head at id {2}) in '{3}' ", oldFiles.Length, recordCount, head.FileId, _storeDirectory);
                 if(oldFiles.Length == 0) {
 
                     // not merging if there is only one archive file
@@ -242,7 +262,8 @@ namespace Droog.Firkin {
                         }
                         _log.DebugFormat("added entries from file {0}: {1}", file.FileId, newIndex.Count);
                     }
-
+                    _log.DebugFormat("total records in merged index: {0}", newIndex.Count);
+                    
                     // swap out index and file list
                     _index = newIndex;
                     _files = newFiles;

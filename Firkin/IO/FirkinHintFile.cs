@@ -60,6 +60,7 @@ namespace Droog.Firkin.IO {
         public IEnumerator<HintRecord> GetEnumerator() {
             lock(_stream) {
                 _stream.Position = 0;
+                var keyCounter = 0;
                 while(true) {
                     var header = _stream.ReadBytes(HEADER_SIZE);
                     if(header.Length == 0) {
@@ -67,8 +68,13 @@ namespace Droog.Firkin.IO {
                         // end of file
                         yield break;
                     }
+                    keyCounter++;
                     var serial = BitConverter.ToUInt32(header, SERIAL_OFFSET);
                     var keySize = BitConverter.ToUInt32(header, KEY_SIZE_OFFSET);
+                    if(keySize > FirkinHash<object>.MaxKeySize) {
+                        var error = string.Format("Hint Enumerator: key {0} in file '{1}' had key of size {2}", keyCounter, _filename, keySize);
+                        throw new CorruptKeyException(error);
+                    }
                     var valueSize = BitConverter.ToUInt32(header, VALUE_SIZE_OFFSET);
                     var valuePosition = BitConverter.ToUInt32(header, VALUE_POSITION_OFFSET);
                     var key = _stream.ReadBytes(keySize);

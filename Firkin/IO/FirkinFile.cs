@@ -99,6 +99,7 @@ namespace Droog.Firkin.IO {
                     _stream.Write(BitConverter.GetBytes(data.ValueSize));
                     dataStream.Position = 0;
                     dataStream.CopyTo(_stream, dataStream.Length);
+                    _stream.Flush();
                     valuePosition = (uint)_stream.Position - data.ValueSize;
                 }
                 return new KeyInfo() {
@@ -122,6 +123,7 @@ namespace Droog.Firkin.IO {
                 _stream.Write(BitConverter.GetBytes(data.ValueSize));
                 _stream.Write(data.Key);
                 data.Value.CopyTo(_stream, data.ValueSize);
+                _stream.Flush();
                 return (uint)_stream.Position - data.ValueSize;
             }
         }
@@ -134,6 +136,7 @@ namespace Droog.Firkin.IO {
             lock(_streamSyncRoot) {
                 CheckObjectDisposed();
                 _stream.Position = 0;
+                var keyCounter = 0;
                 while(true) {
 
                     // TODO: combine head logic with GetKeys()
@@ -143,7 +146,12 @@ namespace Droog.Firkin.IO {
                         // end of file
                         yield break;
                     }
+                    keyCounter++;
                     var keySize = BitConverter.ToUInt32(header, KEY_SIZE_OFFSET);
+                    if(keySize > FirkinHash<object>.MaxKeySize) {
+                        var error = string.Format("GetRecords: key {0} in file '{1}' had key of size {2}", keyCounter, Filename, keySize);
+                        throw new CorruptKeyException(error);
+                    }
                     var valueSize = BitConverter.ToUInt32(header, VALUE_SIZE_OFFSET);
                     var key = _stream.ReadBytes(keySize);
                     var value = new MemoryStream();
@@ -195,6 +203,7 @@ namespace Droog.Firkin.IO {
             lock(_streamSyncRoot) {
                 CheckObjectDisposed();
                 _stream.Position = 0;
+                var keyCounter = 0;
                 while(true) {
                     var recordPosition = _stream.Position;
                     var header = _stream.ReadBytes(HEADER_SIZE);
@@ -203,7 +212,12 @@ namespace Droog.Firkin.IO {
                         // end of file
                         yield break;
                     }
+                    keyCounter++;
                     var keySize = BitConverter.ToUInt32(header, KEY_SIZE_OFFSET);
+                    if(keySize > FirkinHash<object>.MaxKeySize) {
+                        var error = string.Format("GetKeys: key {0} in file '{1}' had key of size {2}", keyCounter, Filename, keySize);
+                        throw new CorruptKeyException(error);
+                    }
                     var valueSize = BitConverter.ToUInt32(header, VALUE_SIZE_OFFSET);
                     var key = _stream.ReadBytes(keySize);
                     _stream.Seek(valueSize, SeekOrigin.Current);
